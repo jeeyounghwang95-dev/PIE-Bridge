@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+/* 창 크기에 따라 전체 UI 배율 자동 조정
+   기준: 1440px 폭에서 약 20px (1.389vw).
+   최소 12px(작은 태블릿)~최대 26px(초대형 모니터)로 클램프. */
+html {
+  font-size: clamp(12px, 1.389vw, 26px);
+}
+
+body {
+  margin: 0;
+  font-family: 'Do Hyeon', 'Jua', 'Nunito', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  background:
+    radial-gradient(circle at 10% 0%, #fef9c3 0%, transparent 35%),
+    radial-gradient(circle at 90% 10%, #ffe4e6 0%, transparent 30%),
+    radial-gradient(circle at 50% 100%, #dbeafe 0%, transparent 40%),
+    #f0f9ff;
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Jua', 'Do Hyeon', 'Nunito', sans-serif;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* 계획 입력 프롬프트 창은 전역 확대에서 제외 */
+textarea.goal-input-textarea {
+  font-family: 'Gaegu', 'Do Hyeon', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+/* 부드러운 페이드 인 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.35s ease-out both;
+}
+
+/* 마스코트 살짝 떠다니는 애니메이션 */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-4px) rotate(2deg); }
+}
+.animate-floaty { animation: floaty 2.4s ease-in-out infinite; }
+
+/* 카드 호버 살짝 들리기 */
+.kid-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kid-card:hover {
+  transform: translateY(-3px);
+}
+
+/* 게임풍 선택 버튼 호버 */
+.game-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.game-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.05);
+}
+.game-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* 공책 느낌 입력창 */
+.notebook-input {
+  background-image:
+    linear-gradient(to right, transparent 0, transparent 28px, #fecaca 28px, #fecaca 30px, transparent 30px),
+    repeating-linear-gradient(transparent 0, transparent 27px, #bae6fd 27px, #bae6fd 28px);
+  background-color: #fffef7;
+  padding-left: 38px !important;
+}
+
+/* 말풍선 */
+.speech-bubble {
+  position: relative;
+  background: #ffffff;
+  border: 2px solid #bae6fd;
+  border-radius: 18px;
+  padding: 8px 12px;
+}
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: -10px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #ffffff;
+  filter: drop-shadow(0 2px 0 #bae6fd);
+}

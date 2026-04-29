@@ -1,0 +1,44 @@
+# ── API 키 / 환경변수 (절대 커밋 금지) ──────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# ── ChromaDB (로컬 벡터 DB, 재빌드 가능) ────────────────────
+backend/chroma_db/
+
+# ── SQLite DB (학생 로그, 민감 정보 포함 가능) ───────────────
+*.db
+*.db-shm
+*.db-wal
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# ── 로그 파일 ────────────────────────────────────────────────
+backend/logs/
+
+# ── Node.js / 프론트엔드 ─────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── IDE / OS ─────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Claude Code AI 메모리 (로컬 전용) ───────────────────────
+.claude/
