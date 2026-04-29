@@ -19,7 +19,8 @@ from app.core.config import settings
 # ── 비동기 엔진 생성 ─────────────────────────────────────────
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,   # SQL 로그 확인하려면 True 로 변경
+    connect_args={"ssl": "require"},  # Supabase PostgreSQL SSL 필수
+    echo=False,
 )
 
 AsyncSessionLocal = async_sessionmaker(
