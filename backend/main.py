@@ -202,13 +202,16 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=512)
 
 # 2. CORS (프론트 개발 서버 및 배포 도메인 허용)
+_cors_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+logger.info(f"CORS allow_origins = {_cors_origins}")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",")],
+    allow_origins=_cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
-    expose_headers=["X-Request-ID"],  # 프론트에서 헤더 읽기 허용
+    expose_headers=["X-Request-ID"],
 )
 
 # 3. 요청/응답 로깅 (가장 바깥쪽 → 모든 요청 포착)
