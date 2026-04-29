@@ -204,7 +204,7 @@ app.add_middleware(GZipMiddleware, minimum_size=512)
 # 2. CORS (프론트 개발 서버 및 배포 도메인 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
