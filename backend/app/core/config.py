@@ -4,6 +4,8 @@
 # .env 파일에 GEMINI_API_KEY=your_key 를 넣어 두세요.
 
 from pathlib import Path
+from typing import Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 이 파일(config.py)을 기준으로 backend/.env 절대 경로를 계산
@@ -32,6 +34,19 @@ class Settings(BaseSettings):
     # 환경변수 ALLOWED_ORIGINS에 콤마로 구분해서 설정 가능
     # 예: "https://pie-bridge.vercel.app,http://localhost:5173"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                import json
+                return json.loads(v)
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
