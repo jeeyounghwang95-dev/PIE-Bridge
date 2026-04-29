@@ -52,6 +52,7 @@ function initStats() {
     planCount: 0,
     codeCount: 0,
     choiceCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    evaluations: { good: 0, soso: 0, hard: 0 },
     startTime: Date.now(),
   };
 }
@@ -82,6 +83,10 @@ export default function App() {
   const addChoice  = (id) => setStats((s) => ({
     ...s,
     choiceCounts: { ...s.choiceCounts, [id]: (s.choiceCounts[id] || 0) + 1 },
+  }));
+  const addEvaluation = (level) => setStats((s) => ({
+    ...s,
+    evaluations: { ...s.evaluations, [level]: (s.evaluations[level] || 0) + 1 },
   }));
 
   const handleCaptureReady = (base64, detectedObstacles, detectedBoard, detectedFacing, detectedHamsterPos) => {
@@ -227,6 +232,7 @@ export default function App() {
                 planChanged={codeResult?.plan_changed ?? false}
                 changeReason={codeResult?.change_reason ?? ""}
                 modifiedSteps={codeResult?.modified_steps ?? []}
+                onEvaluate={addEvaluation}
               />
               {!codeLoading && (
                 <div className="flex justify-center">

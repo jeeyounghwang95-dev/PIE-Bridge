@@ -275,7 +275,7 @@ function PasteGuide() {
   ];
 
   return (
-    <div className="mt-2 p-2 bg-green-50 border-2 border-green-200 rounded-lg">
+    <div className="p-2 bg-green-50 border-2 border-green-200 rounded-lg h-full">
       <p className="font-extrabold text-green-800 text-xs mb-1">다음 단계: IDE에서 실행하기</p>
       <ol className="space-y-0.5">
         {steps.map((text, i) => (
@@ -284,6 +284,100 @@ function PasteGuide() {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+// ── AI 선생님의 계획 평가 (SMILE FACE 3단계) ────────────────
+const SMILE_LEVELS = [
+  {
+    id: "good",
+    emoji: "😀",
+    label: "좋아요",
+    desc: "계획이 잘 짜여졌어요",
+    bg: "bg-green-50",
+    border: "border-green-300",
+    text: "text-green-700",
+    activeBg: "bg-green-500",
+    activeBorder: "border-green-600",
+  },
+  {
+    id: "soso",
+    emoji: "😐",
+    label: "보통",
+    desc: "그저 그래요",
+    bg: "bg-yellow-50",
+    border: "border-yellow-300",
+    text: "text-yellow-700",
+    activeBg: "bg-yellow-400",
+    activeBorder: "border-yellow-500",
+  },
+  {
+    id: "hard",
+    emoji: "😟",
+    label: "아쉬워요",
+    desc: "계획이 부족해요",
+    bg: "bg-red-50",
+    border: "border-red-300",
+    text: "text-red-700",
+    activeBg: "bg-red-500",
+    activeBorder: "border-red-600",
+  },
+];
+
+function PlanEvaluation({ codeKey, onEvaluate }) {
+  const [selected, setSelected] = useState(null);
+
+  // 새 코드가 들어오면 평가 상태 초기화 (codeKey 변경 감지)
+  const [lastKey, setLastKey] = useState(codeKey);
+  if (lastKey !== codeKey) {
+    setLastKey(codeKey);
+    setSelected(null);
+  }
+
+  const handleClick = (level) => {
+    if (selected) return; // 한 번 평가하면 잠금
+    setSelected(level.id);
+    onEvaluate?.(level.id);
+  };
+
+  return (
+    <div className="p-2 bg-sky-50 border-2 border-sky-200 rounded-lg h-full flex flex-col">
+      <p className="font-extrabold text-sky-800 text-xs mb-1">AI 선생님의 계획 평가하기</p>
+      <p className="text-[0.65rem] text-sky-600 font-semibold mb-2">
+        선생님의 계획이 어땠는지 알려주세요
+      </p>
+      <div className="grid grid-cols-3 gap-1.5 flex-1">
+        {SMILE_LEVELS.map((lv) => {
+          const isSelected = selected === lv.id;
+          const isDimmed = selected && !isSelected;
+          return (
+            <button
+              key={lv.id}
+              onClick={() => handleClick(lv)}
+              disabled={!!selected}
+              className={`
+                flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-lg
+                border-2 transition-all duration-200 active:scale-95
+                ${isSelected
+                  ? `${lv.activeBg} ${lv.activeBorder} text-white shadow-md`
+                  : isDimmed
+                  ? "bg-gray-50 border-gray-200 text-gray-400 opacity-50"
+                  : `${lv.bg} ${lv.border} ${lv.text} hover:shadow-md cursor-pointer`}
+              `}
+              title={lv.desc}
+            >
+              <span className="text-2xl leading-none">{lv.emoji}</span>
+              <span className="text-[0.7rem] font-extrabold leading-tight">{lv.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {selected && (
+        <p className="mt-1.5 text-[0.65rem] text-sky-700 font-bold text-center">
+          평가가 기록되었어요!
+        </p>
+      )}
     </div>
   );
 }
@@ -318,6 +412,7 @@ export default function CodeViewer({
   planChanged = false,
   changeReason = "",
   modifiedSteps = [],
+  onEvaluate = null,
 }) {
   // ── 로딩 상태 ──────────────────────────────────────────────
   if (isLoading) {
@@ -396,11 +491,14 @@ export default function CodeViewer({
         </div>
       )}
 
-      {/* 코드 + 붙여넣기 가이드 */}
+      {/* 코드 + 붙여넣기 가이드 + 평가 */}
       {pythonCode && (
         <div className="space-y-2 min-w-0">
           <CodeBlock code={pythonCode} />
-          <PasteGuide />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
+            <PasteGuide />
+            <PlanEvaluation codeKey={pythonCode} onEvaluate={onEvaluate} />
+          </div>
         </div>
       )}
 
