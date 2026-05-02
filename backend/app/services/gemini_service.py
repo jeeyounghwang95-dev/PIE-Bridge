@@ -25,12 +25,25 @@ from app.services.rag_service import rag_service
 logger = logging.getLogger(__name__)
 
 # ── 전역 시스템 프롬프트 페르소나 ──────────────────────────────
-SYSTEM_PERSONA = (
+SYSTEM_PERSONA_KO = (
     "너는 초등학교 선생님이야. "
     "초등학생이 이해하기 쉬운 단어와 다정하고 친절한 존댓말(해요체)을 쓰고, "
     "절대로 위험하거나 불쾌한 내용은 출력하지 마. "
     "답변은 항상 질문자의 언어에 맞춰 자연스러운 존댓말로 제공해."
 )
+SYSTEM_PERSONA_EN = (
+    "You are an elementary school teacher. "
+    "Use simple, friendly English that an elementary school student can easily understand. "
+    "Never output anything dangerous or offensive. "
+    "Always respond entirely in natural English, regardless of the language used in any "
+    "system, reference, or scaffolding text in the prompt."
+)
+# 하위 호환을 위해 기본값 노출 (다른 모듈이 import 할 수 있음)
+SYSTEM_PERSONA = SYSTEM_PERSONA_KO
+
+
+def _persona(lang: str) -> str:
+    return SYSTEM_PERSONA_EN if lang == "en" else SYSTEM_PERSONA_KO
 
 # ── 로보메이션 랩 전용 시스템 가이드 ───────────────────────────
 # RobomationLAB User_Guide Wiki(https://github.com/RobomationLAB/User_Guide/)
@@ -97,14 +110,15 @@ def _is_claude_model(model: str) -> bool:
     return model.startswith("claude-")
 
 
-async def _generate_plan_claude(prompt: str) -> str:
+async def _generate_plan_claude(prompt: str, lang: str = "ko") -> str:
     """Claude 모델로 1-B 행동 계획을 생성한다. 순수 텍스트를 반환."""
     client = _get_anthropic_client()
+    system_msg = _persona(lang)
     try:
         msg = await client.messages.create(
             model=settings.PLAN_MODEL,
             max_tokens=4096,
-            system=SYSTEM_PERSONA,
+            system=system_msg,
             messages=[{"role": "user", "content": prompt}],
         )
         return msg.content[0].text
@@ -116,7 +130,7 @@ async def _generate_plan_claude(prompt: str) -> str:
             msg = await client.messages.create(
                 model=settings.PLAN_MODEL,
                 max_tokens=4096,
-                system=SYSTEM_PERSONA,
+                system=system_msg,
                 messages=[{"role": "user", "content": prompt}],
             )
             return msg.content[0].text
@@ -134,32 +148,37 @@ async def _generate_plan_claude(prompt: str) -> str:
 # max_output_tokens = thinking + 실제출력 합계 예산이므로
 # thinking 을 쓸 땐 넉넉히 8192 로 설정해 JSON 잘림 방지.
 
-# 1-A 이미지 품질 검사용 (thinking 끔)
-_QUALITY_CONFIG = types.GenerateContentConfig(
-    system_instruction=SYSTEM_PERSONA,
-    temperature=0.4,
-    max_output_tokens=4096,
-    response_mime_type="application/json",
-    thinking_config=types.ThinkingConfig(thinking_budget=0),
-)
+def _quality_config(lang: str = "ko") -> types.GenerateContentConfig:
+    """1-A 이미지 품질 검사용 (thinking 끔)"""
+    return types.GenerateContentConfig(
+        system_instruction=_persona(lang),
+        temperature=0.4,
+        max_output_tokens=4096,
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+    )
 
-# 1-B 행동 계획 생성용 (thinking 유지)
-_PLAN_CONFIG = types.GenerateContentConfig(
-    system_instruction=SYSTEM_PERSONA,
-    temperature=0.4,
-    max_output_tokens=8192,
-    response_mime_type="application/json",
-    thinking_config=types.ThinkingConfig(thinking_budget=1024),
-)
 
-# 3 파이썬 코드 생성용 (thinking 더 많이)
-_CODE_CONFIG = types.GenerateContentConfig(
-    system_instruction=SYSTEM_PERSONA,
-    temperature=0.2,
-    max_output_tokens=8192,
-    response_mime_type="application/json",
-    thinking_config=types.ThinkingConfig(thinking_budget=2048),
-)
+def _plan_config(lang: str = "ko") -> types.GenerateContentConfig:
+    """1-B 행동 계획 생성용 (thinking 유지)"""
+    return types.GenerateContentConfig(
+        system_instruction=_persona(lang),
+        temperature=0.4,
+        max_output_tokens=8192,
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=1024),
+    )
+
+
+def _code_config(lang: str = "ko") -> types.GenerateContentConfig:
+    """3 파이썬 코드 생성용 (thinking 더 많이)"""
+    return types.GenerateContentConfig(
+        system_instruction=_persona(lang),
+        temperature=0.2,
+        max_output_tokens=8192,
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=2048),
+    )
 
 # gemini-2.5 가 503일 때 폴백으로 쓸 모델 (lite는 별도 할당량)
 _FLASH_FALLBACK = "gemini-2.5-flash-lite"
@@ -356,7 +375,7 @@ async def analyze_image_quality(base64_image: str, lang: str = "ko") -> dict[str
         model=settings.FLASH_MODEL,
         fallback=_FLASH_FALLBACK,
         contents=[image, prompt],
-        config=_QUALITY_CONFIG,
+        config=_quality_config(lang),
     )
     result = _extract_json(response.text)
 
@@ -561,13 +580,13 @@ async def generate_action_plan(
     image = _image_part_inline(base64_image)
 
     if _is_claude_model(settings.PLAN_MODEL):
-        raw_text = await _generate_plan_claude(prompt)
+        raw_text = await _generate_plan_claude(prompt, lang=lang)
     else:
         response = await _generate(
             model=settings.PLAN_MODEL,
             fallback=_FLASH_FALLBACK,
             contents=[image, prompt],
-            config=_PLAN_CONFIG,
+            config=_plan_config(lang),
         )
         raw_text = response.text
 
@@ -596,13 +615,13 @@ async def generate_action_plan(
             "}"
         )
         if _is_claude_model(settings.PLAN_MODEL):
-            retry_raw = await _generate_plan_claude(retry_prompt)
+            retry_raw = await _generate_plan_claude(retry_prompt, lang=lang)
         else:
             retry_response = await _generate(
                 model=settings.PLAN_MODEL,
                 fallback=_FLASH_FALLBACK,
                 contents=[image, retry_prompt],
-                config=_PLAN_CONFIG,
+                config=_plan_config(lang),
             )
             retry_raw = retry_response.text
         result = _extract_json(retry_raw)
@@ -881,7 +900,7 @@ async def generate_python_code(
         model=settings.FLASH_MODEL,
         fallback=_FLASH_FALLBACK,
         contents=prompt,
-        config=_CODE_CONFIG,
+        config=_code_config(lang),
     )
     result = _extract_json(response.text)
 
