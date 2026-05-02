@@ -464,39 +464,78 @@ async def generate_action_plan(
     )
 
     if board_detected:
-        movement_rules = (
-            "## 1칸의 정의 (매우 중요)\n"
-            "격자판에서 '1칸' = 선이 만나는 교차점과 바로 이웃한 교차점 사이의 거리야.\n"
-            "햄스터봇은 교차점에 서 있고, 이동 명령을 받으면 교차점 → 교차점 단위로 움직여.\n"
-            "장애물이 교차점 X에 놓여 있으면, 봇이 X에 도달하기 전 교차점에서 멈춰야 해.\n"
-            "즉, 봇의 현재 교차점에서 장애물 교차점까지의 거리가 2칸이면 최대 1칸만 이동 가능해.\n\n"
-            "## 햄스터봇이 할 수 있는 행동 (격자 모드 - 이것만 사용)\n"
-            "- 앞으로 N칸 이동 (N은 1 이상의 정수, '칸' 단위만 사용)\n"
-            "- 뒤로 N칸 이동\n"
-            "- 오른쪽으로 회전 (90도 = 1회)\n"
-            "- 왼쪽으로 회전 (90도 = 1회)\n\n"
-            "## 주의사항\n"
-            "- 이동 전에 반드시 경로상 모든 교차점에 장애물이 없는지 확인해\n"
-            "- 거리는 반드시 '칸' 단위로만 표현해 (cm 절대 금지)\n"
-            "- 회전은 방향만 적어 (각도 숫자 금지, 예: '오른쪽으로 회전' O / '오른쪽으로 90도 회전' X)\n"
-            "- action 예시: '앞으로 3칸 이동', '오른쪽으로 회전', '앞으로 2칸 이동'\n"
-        )
-        action_example = (
-            '    {"step": 1, "action": "앞으로 N칸 이동 또는 방향 회전", "detail": "왜 이렇게 하는지 친절한 이유"},\n'
-        )
+        if lang == "en":
+            movement_rules = (
+                "## Definition of '1 cell' (very important)\n"
+                "On the grid board, '1 cell' = the distance between two adjacent line "
+                "intersections. The Hamster robot stands on intersections and moves "
+                "intersection -> intersection. If an obstacle sits on intersection X, "
+                "the robot must stop at the previous intersection.\n\n"
+                "## Allowed actions (board / cell mode only)\n"
+                "- Move forward N cells (N is a positive integer; use 'cells' only)\n"
+                "- Move backward N cells\n"
+                "- Turn right (90 degrees = once)\n"
+                "- Turn left (90 degrees = once)\n\n"
+                "## Notes\n"
+                "- Before moving, verify that no obstacle sits on any intersection along the path\n"
+                "- ALWAYS express distance in 'cells' (NEVER use cm in board mode)\n"
+                "- For turns, write only the direction (no angle number, e.g. 'Turn right' OK, "
+                "'Turn right 90 degrees' NOT OK)\n"
+                "- action examples: 'Move forward 3 cells', 'Turn right', 'Move forward 2 cells'\n"
+            )
+            action_example = (
+                '    {"step": 1, "action": "Move forward N cells OR turn left/right", '
+                '"detail": "Friendly reason why we do this"},\n'
+            )
+        else:
+            movement_rules = (
+                "## 1칸의 정의 (매우 중요)\n"
+                "격자판에서 '1칸' = 선이 만나는 교차점과 바로 이웃한 교차점 사이의 거리야.\n"
+                "햄스터봇은 교차점에 서 있고, 이동 명령을 받으면 교차점 → 교차점 단위로 움직여.\n"
+                "장애물이 교차점 X에 놓여 있으면, 봇이 X에 도달하기 전 교차점에서 멈춰야 해.\n"
+                "즉, 봇의 현재 교차점에서 장애물 교차점까지의 거리가 2칸이면 최대 1칸만 이동 가능해.\n\n"
+                "## 햄스터봇이 할 수 있는 행동 (격자 모드 - 이것만 사용)\n"
+                "- 앞으로 N칸 이동 (N은 1 이상의 정수, '칸' 단위만 사용)\n"
+                "- 뒤로 N칸 이동\n"
+                "- 오른쪽으로 회전 (90도 = 1회)\n"
+                "- 왼쪽으로 회전 (90도 = 1회)\n\n"
+                "## 주의사항\n"
+                "- 이동 전에 반드시 경로상 모든 교차점에 장애물이 없는지 확인해\n"
+                "- 거리는 반드시 '칸' 단위로만 표현해 (cm 절대 금지)\n"
+                "- 회전은 방향만 적어 (각도 숫자 금지, 예: '오른쪽으로 회전' O / '오른쪽으로 90도 회전' X)\n"
+                "- action 예시: '앞으로 3칸 이동', '오른쪽으로 회전', '앞으로 2칸 이동'\n"
+            )
+            action_example = (
+                '    {"step": 1, "action": "앞으로 N칸 이동 또는 방향 회전", "detail": "왜 이렇게 하는지 친절한 이유"},\n'
+            )
     else:
-        movement_rules = (
-            "## 햄스터봇이 할 수 있는 행동 (이것만 사용)\n"
-            "- 앞으로 이동 (거리: cm 단위)\n"
-            "- 뒤로 이동 (거리: cm 단위)\n"
-            "- 왼쪽/오른쪽으로 회전 (각도: 도 단위)\n\n"
-            "## 주의사항\n"
-            "- 거리는 반드시 cm 단위로 구체적인 숫자를 포함해\n"
-            "- action 예시: '앞으로 20cm 이동', '왼쪽으로 90도 회전'\n"
-        )
-        action_example = (
-            '    {"step": 1, "action": "짧은 행동 설명 (cm·도 단위 포함)", "detail": "왜 이렇게 하는지 친절한 이유"},\n'
-        )
+        if lang == "en":
+            movement_rules = (
+                "## Allowed actions (use ONLY these)\n"
+                "- Move forward (distance in cm)\n"
+                "- Move backward (distance in cm)\n"
+                "- Turn left / right (angle in degrees)\n\n"
+                "## Notes\n"
+                "- Always include a concrete number with the cm unit\n"
+                "- action examples: 'Move forward 20cm', 'Turn left 90 degrees'\n"
+            )
+            action_example = (
+                '    {"step": 1, "action": "Short action description with cm/degree units", '
+                '"detail": "Friendly reason why we do this"},\n'
+            )
+        else:
+            movement_rules = (
+                "## 햄스터봇이 할 수 있는 행동 (이것만 사용)\n"
+                "- 앞으로 이동 (거리: cm 단위)\n"
+                "- 뒤로 이동 (거리: cm 단위)\n"
+                "- 왼쪽/오른쪽으로 회전 (각도: 도 단위)\n\n"
+                "## 주의사항\n"
+                "- 거리는 반드시 cm 단위로 구체적인 숫자를 포함해\n"
+                "- action 예시: '앞으로 20cm 이동', '왼쪽으로 90도 회전'\n"
+            )
+            action_example = (
+                '    {"step": 1, "action": "짧은 행동 설명 (cm·도 단위 포함)", "detail": "왜 이렇게 하는지 친절한 이유"},\n'
+            )
 
     board_boundary_rule = ""
     if board_detected:
@@ -575,6 +614,14 @@ async def generate_action_plan(
         "}\n\n"
         "관련 없는 입력일 때 반환 예시:\n"
         '{"irrelevant": true, "steps": [], "summary": ""}'
+        + (
+            "\n\n## FINAL LANGUAGE OVERRIDE\n"
+            "Any Korean text you saw in this prompt above is reference scaffolding only. "
+            "EVERY natural-language field you OUTPUT (each step's 'action', each step's "
+            "'detail', and 'summary') MUST be written in natural English. Do not produce "
+            "any Korean characters in these output fields.\n"
+            if lang == "en" else ""
+        )
     )
 
     image = _image_part_inline(base64_image)
@@ -873,17 +920,35 @@ async def generate_python_code(
         "1. plan_changed: 구현 지침을 반영하면서 이동 경로나 단계 순서가 실질적으로 바뀌었으면 true,\n"
         "   속도/센서 코드만 달라지고 이동 경로는 그대로면 false\n"
         "2. change_reason: 계획이 바뀐 이유 또는 안 바뀐 이유를 초등학생 말투로 1~2문장 (이모지 금지)\n"
-        "   - plan_changed=false 예시: '이동 경로는 그대로지만 속도를 낮춰서 더 안전하게 만들었어요.'\n"
-        "   - plan_changed=true  예시: '불필요한 회전을 줄여서 더 빠른 경로로 바꿨어요.'\n"
-        "3. modified_steps: plan_changed=true일 때만 바뀐 계획 단계 배열 (아래 형식), false면 빈 배열 []\n"
+        + (
+            "   - plan_changed=false example: 'The path stays the same, but I lowered the speed so it moves more safely.'\n"
+            "   - plan_changed=true  example: 'I removed an unnecessary turn so the route is faster.'\n"
+            if lang == "en" else
+            "   - plan_changed=false 예시: '이동 경로는 그대로지만 속도를 낮춰서 더 안전하게 만들었어요.'\n"
+            "   - plan_changed=true  예시: '불필요한 회전을 줄여서 더 빠른 경로로 바꿨어요.'\n"
+        )
+        + "3. modified_steps: plan_changed=true일 때만 바뀐 계획 단계 배열 (아래 형식), false면 빈 배열 []\n"
         "4. explanation: 초등학생 선생님 말투로 아래 내용을 모두 포함해서 자세하게 설명 (6~10문장, 이모지 금지)\n"
-        "   ① 1단계 이미지 분석 결과를 반드시 인용하면서 시작해. 예: '목표물인 머리핀이 햄스터봇 기준 왼쪽 위에 있기 때문에, 먼저 왼쪽으로 회전한 다음 전진 명령을 반복하도록 했답니다.'\n"
-        "      → 학생의 목표(목표물 이름), 햄스터봇 현재 위치, 장애물 위치(햄스터봇 기준 방향)를 자연스럽게 언급해야 함\n"
-        "   ② 말판이 있었는지/없었는지에 따라 어떤 명령어 방식을 선택했는지\n"
-        "   ③ 각 이동/회전 명령에서 숫자(칸수, 시간, 속도)를 왜 그렇게 정했는지\n"
-        "   ④ 학생이 선택한 옵션이 코드에 어떻게 반영되었는지\n"
-        "   ⑤ 코드가 순서대로 어떻게 실행되는지 단계별로 설명\n"
-        "   ⑥ 실제 로봇이 어떻게 움직일지 친절하게 설명\n"
+        + (
+            "   (1) Start by quoting the Stage 1 image analysis. Example: 'Because the hair clip is "
+            "in the front-right of the hamster robot, I told it to move forward first and then turn "
+            "right toward the hair clip.'\n"
+            "       -> Mention the student's goal (target object name), the robot's current position, "
+            "and obstacle positions (relative to the robot) naturally.\n"
+            "   (2) Which command style you chose based on whether a board was detected\n"
+            "   (3) Why each movement/rotation uses the specific number (cells, time, speed) it does\n"
+            "   (4) How the student's chosen option is reflected in the code\n"
+            "   (5) Step-by-step description of how the code runs in order\n"
+            "   (6) Friendly description of how the real robot will move\n"
+            if lang == "en" else
+            "   ① 1단계 이미지 분석 결과를 반드시 인용하면서 시작해. 예: '목표물인 머리핀이 햄스터봇 기준 왼쪽 위에 있기 때문에, 먼저 왼쪽으로 회전한 다음 전진 명령을 반복하도록 했답니다.'\n"
+            "      → 학생의 목표(목표물 이름), 햄스터봇 현재 위치, 장애물 위치(햄스터봇 기준 방향)를 자연스럽게 언급해야 함\n"
+            "   ② 말판이 있었는지/없었는지에 따라 어떤 명령어 방식을 선택했는지\n"
+            "   ③ 각 이동/회전 명령에서 숫자(칸수, 시간, 속도)를 왜 그렇게 정했는지\n"
+            "   ④ 학생이 선택한 옵션이 코드에 어떻게 반영되었는지\n"
+            "   ⑤ 코드가 순서대로 어떻게 실행되는지 단계별로 설명\n"
+            "   ⑥ 실제 로봇이 어떻게 움직일지 친절하게 설명\n"
+        )
         f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
         "반드시 JSON 형식으로만 대답해. 코드 안의 따옴표는 이스케이프해.\n\n"
         "JSON 스키마:\n"
@@ -894,6 +959,16 @@ async def generate_python_code(
         '  "explanation": "선생님 말투 자세한 설명...",\n'
         f'  "python_code": {code_template}\n'
         "}"
+        + (
+            "\n\n## FINAL LANGUAGE OVERRIDE\n"
+            "Any Korean text in this prompt above is reference scaffolding only. EVERY "
+            "natural-language field you OUTPUT (the 'change_reason', 'explanation', and "
+            "every modified step's 'action' and 'detail') MUST be written in natural English. "
+            "Code comments inside 'python_code' MUST also be in English. Do NOT produce any "
+            "Korean characters in these output fields. Python keywords, API names, and string "
+            "literals like 'LEFT'/'RIGHT' stay as-is.\n"
+            if lang == "en" else ""
+        )
     )
 
     response = await _generate(
