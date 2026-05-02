@@ -11,6 +11,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { analyzeImage } from "../services/api";
+import { useT } from "../i18n/LanguageContext";
 
 const RESIZE_MAX_WIDTH  = 800;
 const CAPTURE_QUALITY   = 0.85;
@@ -18,21 +19,22 @@ const PREVIEW_ASPECT    = "4/3";
 
 // ── 카메라 권한 에러 안내 ────────────────────────────────────
 function PermissionError({ onRetry }) {
+  const { t } = useT();
   return (
     <div className="flex flex-col items-center gap-4 py-10 text-center px-6">
       <div>
-        <p className="font-bold text-gray-700 text-lg">카메라를 사용할 수 없어요</p>
-        <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-          브라우저 주소창 옆 자물쇠 아이콘을 눌러<br />
-          카메라 권한을 <strong>허용</strong>으로 바꿔 주세요.
-        </p>
+        <p className="font-bold text-gray-700 text-lg">{t("capture.permission.title")}</p>
+        <p
+          className="text-gray-500 text-sm mt-1 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: t("capture.permission.body").replace(/\n/g, "<br />") }}
+        />
       </div>
       <button
         onClick={onRetry}
         className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white
                    font-bold rounded-xl transition-colors shadow-sm"
       >
-        다시 시도하기
+        {t("capture.permission.retry")}
       </button>
     </div>
   );
@@ -40,13 +42,14 @@ function PermissionError({ onRetry }) {
 
 // ── 분석 결과 카드 (편집 가능) ────────────────────────────────
 function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mode }) {
+  const { t } = useT();
   const hamsterMissing = result?.hamster_detected === false;
   const passed = result?.passed && !hamsterMissing;
-  const retakeLabel  = mode === "upload" ? "다른 사진 올리기" : "다시 찍기";
-  const failHeadline = mode === "upload" ? "다른 사진을 올려주세요" : "사진을 다시 찍어요";
+  const retakeLabel  = mode === "upload" ? t("capture.retake.upload") : t("capture.retake.camera");
+  const failHeadline = mode === "upload" ? t("capture.fail.upload") : t("capture.fail.camera");
   const hamsterHint  = mode === "upload"
-    ? "햄스터봇이 보이지 않아요. 햄스터봇이 나오는 사진을 올려주세요."
-    : "햄스터봇이 보이지 않아요. 햄스터봇이 나오게 사진을 다시 찍어주세요.";
+    ? t("capture.hamsterMissing.upload")
+    : t("capture.hamsterMissing.camera");
 
   const updateObstacle = (idx, field, value) => {
     const next = (editable.obstacles || []).map((o, i) => i === idx ? { ...o, [field]: value } : o);
@@ -68,7 +71,7 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
     `}>
       <div className="flex items-center gap-2">
         <p className={`font-black text-base ${passed ? "text-green-800" : "text-red-800"}`}>
-          {passed ? "사진이 잘 찍혔어요" : failHeadline}
+          {passed ? t("capture.passed") : failHeadline}
         </p>
       </div>
       <p className={`text-xs leading-snug font-semibold ${passed  ? "text-green-700" : "text-red-700"}`}>
@@ -79,18 +82,18 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
       {passed && (
         <div className="space-y-2 bg-white/70 rounded-xl p-2.5 border-2 border-green-200">
           <p className="text-xs font-extrabold text-green-800">
-            분석 결과를 확인해 주세요. 잘못된 정보가 있으면 직접 고칠 수 있어요.
+            {t("capture.editable.title")}
           </p>
 
           <div className="space-y-1">
             <label className="text-xs font-extrabold text-gray-600">
-              햄스터봇 위치
+              {t("capture.editable.hamsterPosition")}
             </label>
             <input
               type="text"
               value={editable.hamsterPosition ?? ""}
               onChange={(e) => onChange({ ...editable, hamsterPosition: e.target.value })}
-              placeholder="예: 사진 가운데 아래쪽"
+              placeholder={t("capture.editable.hamsterPosition.placeholder")}
               className="w-full px-2.5 py-1.5 text-xs border-2 border-gray-300 rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-green-300 font-semibold"
             />
@@ -99,20 +102,20 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-extrabold text-gray-600">
-                장애물 (햄스터봇 기준 위치)
+                {t("capture.editable.obstacles")}
               </label>
               <button
                 type="button"
                 onClick={addObstacle}
                 className="text-xs font-extrabold text-green-700 hover:text-green-900
-                           border-2 border-green-300 rounded-full px-2 py-0.5 bg-white"
+                           border-2 border-green-300 rounded-full px-2 py-0.5 bg-white whitespace-nowrap"
               >
-                + 추가
+                {t("capture.editable.addObstacle")}
               </button>
             </div>
             {(editable.obstacles?.length ?? 0) === 0 ? (
               <p className="text-xs text-gray-500 italic font-semibold">
-                감지된 장애물이 없어요. 사진에 있는데 빠진 게 있다면 추가해 주세요.
+                {t("capture.editable.noObstacles")}
               </p>
             ) : (
               <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
@@ -122,7 +125,7 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
                       type="text"
                       value={obs.name ?? ""}
                       onChange={(e) => updateObstacle(i, "name", e.target.value)}
-                      placeholder="이름"
+                      placeholder={t("capture.editable.obstacleName.placeholder")}
                       className="w-1/3 px-2 py-1 text-xs border-2 border-gray-300 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-green-300 font-semibold"
                     />
@@ -130,17 +133,17 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
                       type="text"
                       value={obs.position ?? ""}
                       onChange={(e) => updateObstacle(i, "position", e.target.value)}
-                      placeholder="햄스터봇 기준 위치"
+                      placeholder={t("capture.editable.obstaclePosition.placeholder")}
                       className="flex-1 px-2 py-1 text-xs border-2 border-gray-300 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-green-300 font-semibold"
                     />
                     <button
                       type="button"
                       onClick={() => removeObstacle(i)}
-                      className="text-xs font-extrabold text-red-500 hover:text-red-700 px-1.5"
-                      title="이 장애물 지우기"
+                      className="text-xs font-extrabold text-red-500 hover:text-red-700 px-1.5 whitespace-nowrap"
+                      title={t("capture.editable.removeObstacleTitle")}
                     >
-                      삭제
+                      {t("capture.editable.removeObstacle")}
                     </button>
                   </div>
                 ))}
@@ -157,7 +160,7 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
               className="w-4 h-4 accent-green-600"
             />
             <label htmlFor="board-detected-edit" className="text-xs font-extrabold text-gray-700">
-              햄스터봇 아래에 발판(말판/매트)이 있어요
+              {t("capture.editable.boardDetected")}
             </label>
           </div>
         </div>
@@ -177,7 +180,7 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
             className="flex-1 py-2 bg-sky-500 hover:bg-sky-600
                        text-white font-extrabold text-sm rounded-xl transition-colors shadow-md"
           >
-            이 사진으로 할게요
+            {t("capture.confirm")}
           </button>
         )}
       </div>
@@ -187,12 +190,13 @@ function QualityResultCard({ result, editable, onChange, onRetake, onConfirm, mo
 
 // ── 분석 중 오버레이 ─────────────────────────────────────────
 function AnalyzingOverlay() {
+  const { t } = useT();
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center
                     bg-black/50 rounded-2xl gap-4">
       <div className="w-14 h-14 border-4 border-white/30 border-t-white rounded-full animate-spin" />
       <p className="text-white font-bold text-lg drop-shadow animate-pulse">
-        사진을 분석하고 있어요...
+        {t("capture.analyzing")}
       </p>
     </div>
   );
@@ -200,15 +204,16 @@ function AnalyzingOverlay() {
 
 // ── 카메라 전환 버튼 ─────────────────────────────────────────
 function CameraFlipButton({ onClick }) {
+  const { t } = useT();
   return (
     <button
       onClick={onClick}
       className="absolute top-3 right-3 px-3 h-9 bg-black/40 hover:bg-black/60
                  text-white rounded-full flex items-center justify-center
-                 text-xs font-bold transition-colors z-10"
-      title="카메라 전환"
+                 text-xs font-bold transition-colors z-10 whitespace-nowrap"
+      title={t("capture.cameraFlip")}
     >
-      카메라 전환
+      {t("capture.cameraFlip")}
     </button>
   );
 }
@@ -241,13 +246,13 @@ function imageToResizedBase64(img, maxWidth = RESIZE_MAX_WIDTH, quality = CAPTUR
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-function readFileAsResizedBase64(file) {
+function readFileAsResizedBase64(file, errMsgs) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("파일을 읽을 수 없어요."));
+    reader.onerror = () => reject(new Error(errMsgs.fileRead));
     reader.onload = (e) => {
       const img = new Image();
-      img.onerror = () => reject(new Error("이미지를 불러올 수 없어요."));
+      img.onerror = () => reject(new Error(errMsgs.readFile));
       img.onload  = () => resolve(imageToResizedBase64(img));
       img.src = e.target.result;
     };
@@ -273,6 +278,7 @@ function toEditable(result) {
 // ─────────────────────────────────────────────────────────────
 
 export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) {
+  const { t, lang } = useT();
   const [mode, setMode]                 = useState("camera");
   const [robotConnected, setRobotConnected] = useState(false);
   const [streamReady, setStreamReady]   = useState(false);
@@ -323,10 +329,10 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setPermErr(true);
       } else {
-        setError("카메라를 열 수 없어요. 다른 앱이 카메라를 사용 중인지 확인해 주세요.");
+        setError(t("capture.error.camera"));
       }
     }
-  }, [facingMode]);
+  }, [facingMode, t]);
 
   useEffect(() => {
     if (!robotConnected || mode !== "camera") {
@@ -344,16 +350,16 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
   const analyzeBase64 = useCallback(async (base64) => {
     setAnalyzing(true);
     try {
-      const result = await analyzeImage(base64, userId);
+      const result = await analyzeImage(base64, userId, lang);
       setQResult(result);
       setEditable(toEditable(result));
     } catch (e) {
-      setError(e.message ?? "사진 분석에 실패했어요. 다시 시도해 볼까요?");
-      streamRef.current?.getTracks().forEach((t) => { t.enabled = true; });
+      setError(e.message ?? t("capture.error.analyze"));
+      streamRef.current?.getTracks().forEach((track) => { track.enabled = true; });
     } finally {
       setAnalyzing(false);
     }
-  }, [userId]);
+  }, [userId, lang, t]);
 
   const handleCapture = useCallback(async () => {
     if (!videoRef.current || !streamReady || analyzing) return;
@@ -362,31 +368,34 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
     setEditable(null);
     const base64 = captureAndResize(videoRef.current);
     setCaptured(base64);
-    streamRef.current?.getTracks().forEach((t) => { t.enabled = false; });
+    streamRef.current?.getTracks().forEach((track) => { track.enabled = false; });
     await analyzeBase64(base64);
   }, [streamReady, analyzing, analyzeBase64]);
 
   const handleFileSelect = useCallback(async (file) => {
     if (!file || analyzing) return;
     if (!file.type.startsWith("image/")) {
-      setError("이미지 파일만 올릴 수 있어요.");
+      setError(t("capture.error.imageOnly"));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError("이미지 크기가 너무 커요. (10MB 이하)");
+      setError(t("capture.error.tooLarge"));
       return;
     }
     setError("");
     setQResult(null);
     setEditable(null);
     try {
-      const base64 = await readFileAsResizedBase64(file);
+      const base64 = await readFileAsResizedBase64(file, {
+        fileRead: t("capture.error.fileRead"),
+        readFile: t("capture.error.readFile"),
+      });
       setCaptured(base64);
       await analyzeBase64(base64);
     } catch (e) {
-      setError(e.message ?? "이미지를 불러올 수 없어요.");
+      setError(e.message ?? t("capture.error.readFile"));
     }
-  }, [analyzing, analyzeBase64]);
+  }, [analyzing, analyzeBase64, t]);
 
   const handleFileInputChange = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -415,7 +424,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
     setQResult(null);
     setEditable(null);
     setError("");
-    streamRef.current?.getTracks().forEach((t) => { t.enabled = true; });
+    streamRef.current?.getTracks().forEach((track) => { track.enabled = true; });
   }, []);
 
   const handleFlip = useCallback(() => {
@@ -460,7 +469,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
           {!robotConnected && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gray-900">
               <p className="text-white/80 font-bold text-base text-center px-6">
-                위에서 로봇 연결을 먼저 확인해주세요
+                {t("capture.viewfinder.connectFirst")}
               </p>
             </div>
           )}
@@ -477,7 +486,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
           {capturedBase64 && (
             <img
               src={capturedBase64}
-              alt="캡처된 사진"
+              alt={t("capture.captured.alt")}
               className="w-full h-full object-cover"
             />
           )}
@@ -486,7 +495,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
                             bg-gray-900 gap-3">
               <div className="w-10 h-10 border-4 border-white/20 border-t-white
                               rounded-full animate-spin" />
-              <p className="text-white/70 text-sm">카메라 준비 중...</p>
+              <p className="text-white/70 text-sm">{t("capture.cameraReady")}</p>
             </div>
           )}
           {analyzing && <AnalyzingOverlay />}
@@ -511,7 +520,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             <>
               <img
                 src={capturedBase64}
-                alt="업로드된 사진"
+                alt={t("capture.uploaded.alt")}
                 className="w-full h-full object-cover"
               />
               {analyzing && <AnalyzingOverlay />}
@@ -534,15 +543,15 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             >
               {!robotConnected ? (
                 <p className="text-white/80 font-bold text-base text-center px-6">
-                  위에서 로봇 연결을 먼저 확인해주세요
+                  {t("capture.viewfinder.connectFirst")}
                 </p>
               ) : (
                 <>
-                  <p className="text-white font-bold text-base">
-                    이미지를 여기에 끌어다 놓거나 클릭해요
+                  <p className="text-white font-bold text-base text-center px-4">
+                    {t("capture.upload.dropOrClick")}
                   </p>
                   <p className="text-white/60 text-xs">
-                    JPG, PNG 등 (최대 10MB)
+                    {t("capture.upload.formats")}
                   </p>
                 </>
               )}
@@ -565,16 +574,8 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
     <div className="px-3 py-2 bg-sky-50 border-2 border-sky-200
                     rounded-xl text-xs text-sky-800 font-semibold">
       <p className="leading-snug">
-        {mode === "camera" ? (
-          <>
-            <strong>주의.</strong> 사진을 찍은 다음에 햄스터봇을 움직이지 않아요.
-            위치가 바뀌었으면 처음으로 되돌아가 다시 찍습니다.
-          </>
-        ) : (
-          <>
-            <strong>주의.</strong> 실제 햄스터봇 위치가 업로드한 사진과 같은지 확인해요.
-          </>
-        )}
+        <strong>{t("capture.notice.warning")}</strong>{" "}
+        {mode === "camera" ? t("capture.notice.camera") : t("capture.notice.upload")}
       </p>
     </div>
   ) : null;
@@ -586,7 +587,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full
                          bg-sky-500 text-white font-black text-base shadow-md">1</span>
         <h2 className="text-xl font-black text-gray-800 tracking-tight">
-          햄스터봇 사진 준비하기
+          {t("capture.title")}
         </h2>
         <a
           href="https://robomationlab.com/BlockComposer/"
@@ -594,27 +595,27 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
           rel="noopener noreferrer"
           className="ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full
                      bg-white border-2 border-sky-200 hover:border-sky-400 hover:bg-sky-50
-                     text-sky-700 font-extrabold text-xs shadow-sm transition-colors"
-          title="로보메이션 블록 컴포저 새 탭으로 열기"
+                     text-sky-700 font-extrabold text-xs shadow-sm transition-colors whitespace-nowrap"
+          title={t("capture.robomationLinkTitle")}
         >
           <img
             src="/robomation-icon.png"
             alt=""
             className="w-5 h-5 rounded-full"
           />
-          <span>로보메이션 이동하기</span>
+          <span>{t("capture.robomationLink")}</span>
           <span aria-hidden="true" className="text-sky-400">↗</span>
         </a>
       </div>
       <p className="text-xs text-gray-500 -mt-1 font-semibold">
-        햄스터봇이 잘 보이는 사진을 카메라로 찍거나 올려 주세요.
+        {t("capture.subtitle")}
       </p>
 
       {/* 1열: 모드 탭 */}
       <div className="grid grid-cols-2 gap-1 p-0 bg-gray-100 rounded-xl">
         {[
-          { id: "camera", label: "카메라로 찍기" },
-          { id: "upload", label: "이미지 올리기" },
+          { id: "camera", label: t("capture.tab.camera") },
+          { id: "upload", label: t("capture.tab.upload") },
         ].map((m) => (
           <button
             key={m.id}
@@ -636,7 +637,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
       <div className="flex justify-center">
         <label className={`
           inline-flex items-center gap-2 px-4 py-1.5 rounded-xl border-2 cursor-pointer select-none
-          transition-colors
+          transition-colors max-w-full
           ${robotConnected
             ? "bg-green-50 border-green-300 text-green-800"
             : "bg-amber-50 border-amber-300 text-amber-800"}
@@ -647,10 +648,10 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             onChange={(e) => setRobotConnected(e.target.checked)}
             className="w-4 h-4 accent-green-600 flex-shrink-0"
           />
-          <span className="font-extrabold text-[clamp(0.75rem,1vw,0.95rem)] leading-tight whitespace-nowrap">
+          <span className="font-extrabold text-[clamp(0.7rem,1vw,0.95rem)] leading-tight text-center">
             {robotConnected
-              ? "햄스터봇이 컴퓨터에 연결되어 있어요"
-              : "햄스터봇이 컴퓨터에 연결되어 있는지 확인해요 (확인했으면 클릭!)"}
+              ? t("capture.robotConnected")
+              : t("capture.robotCheck")}
           </span>
         </label>
       </div>
@@ -691,7 +692,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700
                        font-bold rounded-lg text-xs transition-colors shrink-0"
           >
-            다시 찍기
+            {t("capture.retake.camera")}
           </button>
         </div>
       )}
@@ -709,7 +710,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             flex items-center justify-center gap-3
           "
         >
-          {robotConnected ? "사진 찍기" : "먼저 로봇 연결을 확인해요"}
+          {robotConnected ? t("capture.captureBtn") : t("capture.captureBtn.disabled")}
         </button>
       )}
       {!capturedBase64 && mode === "upload" && (
@@ -725,7 +726,7 @@ export default function WebcamCapture({ userId = "anonymous", onCaptureReady }) 
             flex items-center justify-center gap-3
           "
         >
-          {robotConnected ? "이미지 파일 고르기" : "먼저 로봇 연결을 확인해요"}
+          {robotConnected ? t("capture.uploadBtn") : t("capture.uploadBtn.disabled")}
         </button>
       )}
     </section>

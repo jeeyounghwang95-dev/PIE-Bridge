@@ -8,22 +8,30 @@
 // 데이터는 페이지가 열려있는 동안만 유지 (새로고침/닫기 시 초기화)
 
 import { useState, useEffect } from "react";
+import { useT } from "../i18n/LanguageContext";
 
-const CHOICE_META = [
-  { id: 1, label: "이대로 실행",   color: "bg-indigo-500" },
-  { id: 3, label: "다시 계획",     color: "bg-gray-400"   },
-  { id: 4, label: "장애물 회피",   color: "bg-amber-500"  },
-  { id: 5, label: "효율적으로",    color: "bg-purple-500" },
-];
+const CHOICE_COLOR = {
+  1: "bg-indigo-500",
+  3: "bg-gray-400",
+  4: "bg-amber-500",
+  5: "bg-purple-500",
+};
 
-const EVAL_META = [
-  { id: "good", emoji: "😀", label: "좋아요",   color: "bg-green-500"  },
-  { id: "soso", emoji: "😐", label: "보통",     color: "bg-yellow-400" },
-  { id: "hard", emoji: "😟", label: "아쉬워요", color: "bg-red-500"    },
-];
+const EVAL_COLOR = {
+  good: "bg-green-500",
+  soso: "bg-yellow-400",
+  hard: "bg-red-500",
+};
+
+const EVAL_EMOJI = {
+  good: "😀",
+  soso: "😐",
+  hard: "😟",
+};
 
 // ── 경과 시간 포맷 ──────────────────────────────────────────
 function useElapsed(startTime) {
+  const { t } = useT();
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
@@ -31,22 +39,23 @@ function useElapsed(startTime) {
   }, [startTime]);
   const m = Math.floor(elapsed / 60);
   const s = elapsed % 60;
-  return m > 0 ? `${m}분 ${s}초` : `${s}초`;
+  return m > 0 ? t("dash.minSecFmt", { m, s }) : t("dash.secFmt", { s });
 }
 
-function ChoiceBar({ meta, count, total }) {
+function ChoiceBar({ label, color, count, total }) {
+  const { t } = useT();
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-600 w-16 flex-shrink-0 truncate font-bold">{meta.label}</span>
+      <span className="text-xs text-gray-600 w-20 flex-shrink-0 truncate font-bold">{label}</span>
       <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${meta.color}`}
+          className={`h-full rounded-full transition-all duration-500 ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs font-extrabold text-gray-700 w-8 text-right flex-shrink-0">
-        {count}회
+      <span className="text-xs font-extrabold text-gray-700 w-10 text-right flex-shrink-0">
+        {count}{t("dash.countSuffix")}
       </span>
     </div>
   );
@@ -68,48 +77,65 @@ function StatCard({ label, value, highlight }) {
 // 메인 컴포넌트
 // ─────────────────────────────────────────────────────────────
 export default function TeacherDashboard({ stats, userId }) {
+  const { t, lang } = useT();
   const elapsed = useElapsed(stats.startTime);
   const totalChoices = Object.values(stats.choiceCounts).reduce((a, b) => a + b, 0);
   const evaluations = stats.evaluations ?? { good: 0, soso: 0, hard: 0 };
   const totalEvaluations = Object.values(evaluations).reduce((a, b) => a + b, 0);
 
-  // AI 협업 점수: 선택지 1·2·4·5만 카운트 (3은 재도전이므로 제외)
+  // AI 협업 점수: 선택지 1·4·5만 카운트 (3은 재도전이므로 제외)
   const collaborationChoices = [1,4,5].reduce((s, id) => s + (stats.choiceCounts[id] || 0), 0);
   const collaborationRate = stats.planCount > 0
     ? Math.round((collaborationChoices / stats.planCount) * 100)
     : 0;
 
+  const choiceItems = [
+    { id: 1, label: t("dash.choice1") },
+    { id: 3, label: t("dash.choice3") },
+    { id: 4, label: t("dash.choice4") },
+    { id: 5, label: t("dash.choice5") },
+  ];
+
+  const evalItems = [
+    { id: "good", label: t("dash.eval.good") },
+    { id: "soso", label: t("dash.eval.soso") },
+    { id: "hard", label: t("dash.eval.hard") },
+  ];
+
+  const safetyTimeLocale = lang === "en" ? "en-US" : "ko-KR";
+
   return (
     <div className="w-full bg-white rounded-2xl border-2 border-sky-100 shadow-md overflow-hidden">
       {/* 헤더 */}
       <div className="flex items-center justify-between px-3 py-2 bg-sky-500">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold text-white text-sm tracking-wide">대시보드</span>
-          <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-[0.65rem] font-bold">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-extrabold text-white text-sm tracking-wide whitespace-nowrap">{t("dash.header")}</span>
+          <span className="px-2 py-0.5 bg-white/20 rounded-full text-white text-[0.65rem] font-bold truncate">
             {userId}
           </span>
         </div>
-        <span className="text-sky-100 text-[0.65rem] font-semibold">{elapsed} 활동 중</span>
+        <span className="text-sky-100 text-[0.65rem] font-semibold whitespace-nowrap ml-2">{elapsed} {t("dash.elapsedSuffix")}</span>
       </div>
 
       <div className="p-3 space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <StatCard label="계획 생성" value={stats.planCount} />
-          <StatCard label="코드 생성" value={stats.codeCount} />
-          <StatCard label="AI 협업률" value={`${collaborationRate}%`} />
-          <StatCard label="안전 차단" value={stats.safetyBlocks} highlight={stats.safetyBlocks > 0} />
+          <StatCard label={t("dash.stat.plan")} value={stats.planCount} />
+          <StatCard label={t("dash.stat.code")} value={stats.codeCount} />
+          <StatCard label={t("dash.stat.collab")} value={`${collaborationRate}%`} />
+          <StatCard label={t("dash.stat.safety")} value={stats.safetyBlocks} highlight={stats.safetyBlocks > 0} />
         </div>
 
         <div className="space-y-2">
           <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">
-            AI 협업 옵션 선택 현황 (총 {totalChoices}회)
+            {t("dash.choices.title", { n: totalChoices })}
           </p>
           <div className="space-y-1.5">
-            {CHOICE_META.map((meta) => (
+            {choiceItems.map((c) => (
               <ChoiceBar
-                key={meta.id}
-                meta={meta}
-                count={stats.choiceCounts[meta.id] || 0}
+                key={c.id}
+                label={c.label}
+                color={CHOICE_COLOR[c.id]}
+                count={stats.choiceCounts[c.id] || 0}
                 total={totalChoices}
               />
             ))}
@@ -118,10 +144,10 @@ export default function TeacherDashboard({ stats, userId }) {
 
         <div className="space-y-2">
           <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">
-            계획 평가 (SMILE FACE · 총 {totalEvaluations}회)
+            {t("dash.eval.title", { n: totalEvaluations })}
           </p>
           <div className="grid grid-cols-3 gap-1.5">
-            {EVAL_META.map((m) => {
+            {evalItems.map((m) => {
               const count = evaluations[m.id] || 0;
               const pct = totalEvaluations > 0 ? Math.round((count / totalEvaluations) * 100) : 0;
               return (
@@ -129,12 +155,12 @@ export default function TeacherDashboard({ stats, userId }) {
                   key={m.id}
                   className="flex flex-col items-center justify-center p-2 rounded-xl border-2 bg-gray-50 border-gray-200"
                 >
-                  <span className="text-2xl leading-none">{m.emoji}</span>
-                  <p className="text-base font-black text-gray-800 mt-1 leading-none">{count}회</p>
-                  <p className="text-[0.65rem] text-gray-500 font-bold mt-0.5">{m.label}</p>
+                  <span className="text-2xl leading-none">{EVAL_EMOJI[m.id]}</span>
+                  <p className="text-base font-black text-gray-800 mt-1 leading-none">{count}{t("dash.countSuffix")}</p>
+                  <p className="text-[0.65rem] text-gray-500 font-bold mt-0.5 text-center leading-tight">{m.label}</p>
                   <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${m.color}`}
+                      className={`h-full rounded-full transition-all duration-500 ${EVAL_COLOR[m.id]}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -147,13 +173,13 @@ export default function TeacherDashboard({ stats, userId }) {
         {stats.safetyBlocks > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">
-              안전 필터 차단 기록
+              {t("dash.safety.title")}
             </p>
             <div className="max-h-28 overflow-y-auto space-y-1">
               {stats.safetyLog.slice().reverse().map((entry, i) => (
                 <div key={i} className="flex items-start gap-2 px-2 py-1.5 bg-red-50 rounded-lg border border-red-200">
                   <span className="text-[0.65rem] text-red-400 flex-shrink-0 font-mono mt-0.5">
-                    {new Date(entry.time).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(entry.time).toLocaleTimeString(safetyTimeLocale, { hour: "2-digit", minute: "2-digit" })}
                   </span>
                   <span className="text-xs text-red-700 break-all font-semibold">"{entry.input}"</span>
                 </div>
@@ -164,7 +190,7 @@ export default function TeacherDashboard({ stats, userId }) {
 
         {stats.planCount === 0 && stats.safetyBlocks === 0 && (
           <div className="text-center py-3 text-gray-400 text-xs font-semibold">
-            아직 활동이 없어요. 학생이 사진을 찍으면 여기에 기록돼요.
+            {t("dash.empty")}
           </div>
         )}
       </div>

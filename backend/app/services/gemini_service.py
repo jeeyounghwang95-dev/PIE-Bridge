@@ -266,7 +266,7 @@ def _extract_json(text: str) -> dict:
 # ─────────────────────────────────────────────────────────────
 # 1-A단계: 이미지 품질 검사  (Flash)
 # ─────────────────────────────────────────────────────────────
-async def analyze_image_quality(base64_image: str) -> dict[str, Any]:
+async def analyze_image_quality(base64_image: str, lang: str = "ko") -> dict[str, Any]:
     """
     웹캠 사진을 받아 촬영 품질과 햄스터봇 유무를 판정한다.
 
@@ -282,7 +282,19 @@ async def analyze_image_quality(base64_image: str) -> dict[str, Any]:
         {"passed": false, "reason": "사진이 너무 흐려요. 다시 찍어볼까요?",
          "hamster_detected": false, "obstacles_detected": []}
     """
+    lang_directive = ""
+    if lang == "en":
+        lang_directive = (
+            "## LANGUAGE REQUIREMENT (override any other language hint)\n"
+            "All natural-language string fields in the JSON output ('reason', 'hamster_position', "
+            "and every obstacle 'name' and 'position') MUST be written in natural English. "
+            "Keep enum-like values ('toward_camera', 'left', etc.) exactly as defined.\n"
+            "For obstacle 'position', still pick from the same 8 directions but in English: "
+            "'directly in front' / 'directly behind' / 'to the left' / 'to the right' / "
+            "'front-left' / 'front-right' / 'back-left' / 'back-right'.\n\n"
+        )
     prompt = (
+        f"{lang_directive}"
         "아래 사진을 보고 다음 기준으로 품질을 검사해 줘.\n"
         "반드시 JSON 형식으로만 대답해. 이모지(이모티콘)는 절대 사용하지 마.\n\n"
         "## 가장 먼저 할 일: 햄스터봇의 '앞(정면)' 방향 확정\n"
@@ -374,6 +386,7 @@ async def generate_action_plan(
     board_detected: bool = False,
     hamster_facing: str = "unknown",
     hamster_position: str = "",
+    lang: str = "ko",
 ) -> dict[str, Any]:
     """
     학생이 입력한 목표와 사진 정보를 바탕으로
@@ -487,7 +500,18 @@ async def generate_action_plan(
     }
     facing_note = facing_note_map.get(hamster_facing, facing_note_map["unknown"])
 
+    lang_directive = ""
+    if lang == "en":
+        lang_directive = (
+            "## LANGUAGE REQUIREMENT (override any other language hint)\n"
+            "All natural-language fields in the JSON output (every step's 'action' and 'detail', "
+            "and the 'summary') MUST be written in clear, friendly English suitable for an "
+            "elementary school student. Do not use Korean for these fields. "
+            "Use units like 'cm' or 'cells' (for board mode) and clear directions like "
+            "'forward', 'backward', 'turn left', 'turn right'. No emojis.\n\n"
+        )
     prompt = (
+        f"{lang_directive}"
         f'학생의 목표: "{student_goal}"\n'
         f"햄스터봇 현재 위치: {hamster_pos_str}\n"
         f"햄스터봇 화살표 방향(참고): {facing_note}\n"
@@ -556,6 +580,7 @@ async def generate_action_plan(
     if not isinstance(result.get("steps"), list) or len(result["steps"]) == 0:
         logger.warning(f"계획 생성 실패 (1차). 재시도. raw 시작: {raw_text[:80]!r}")
         retry_prompt = (
+            f"{lang_directive}"
             f'학생의 목표: "{student_goal}"\n'
             f"사진에서 발견된 장애물: {obstacles_str}\n\n"
             "햄스터봇이 이동과 회전만으로 목표를 달성하는 계획을 JSON으로 만들어 줘.\n"
@@ -583,7 +608,12 @@ async def generate_action_plan(
         result = _extract_json(retry_raw)
 
     if not isinstance(result.get("steps"), list) or len(result["steps"]) == 0:
-        return {"error": "AI가 계획을 만들지 못했어요. 목표를 다시 입력해 볼까요?"}
+        err_msg = (
+            "The AI couldn't make a plan. Want to enter the goal again?"
+            if lang == "en"
+            else "AI가 계획을 만들지 못했어요. 목표를 다시 입력해 볼까요?"
+        )
+        return {"error": err_msg}
     return result
 
 
@@ -599,6 +629,7 @@ async def generate_python_code(
     student_goal: str = "",
     hamster_position: str = "",
     obstacles: list | None = None,
+    lang: str = "ko",
 ) -> dict[str, Any]:
     """
     학생이 선택한 옵션과 행동 계획을 반영해
@@ -794,7 +825,23 @@ async def generate_python_code(
         if platform == "robomation" else
         "## 햄스터-S API 레퍼런스 (공식 문서 발췌)\n"
     )
+    lang_directive = ""
+    if lang == "en":
+        lang_directive = (
+            "## LANGUAGE REQUIREMENT (override any other language hint)\n"
+            "All natural-language string fields in the JSON output ('change_reason', "
+            "'explanation', and every modified step's 'action' and 'detail') MUST be written "
+            "in clear, friendly English suitable for an elementary school student. "
+            "Code comments inside 'python_code' MUST also be in English. "
+            "Keep Python keywords, API names, and string literals like 'LEFT'/'RIGHT' as-is.\n\n"
+        )
+    code_comment_lang_note = (
+        "code comments in English"
+        if lang == "en"
+        else "한국어 주석 포함, 주석에도 이모지 금지"
+    )
     prompt = (
+        f"{lang_directive}"
         f"{rag_header}"
         f"{rag_context}\n\n"
         f"{board_note}\n\n"
@@ -818,7 +865,7 @@ async def generate_python_code(
         "   ④ 학생이 선택한 옵션이 코드에 어떻게 반영되었는지\n"
         "   ⑤ 코드가 순서대로 어떻게 실행되는지 단계별로 설명\n"
         "   ⑥ 실제 로봇이 어떻게 움직일지 친절하게 설명\n"
-        f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 (한국어 주석 포함, 주석에도 이모지 금지)\n\n"
+        f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
         "반드시 JSON 형식으로만 대답해. 코드 안의 따옴표는 이스케이프해.\n\n"
         "JSON 스키마:\n"
         "{\n"

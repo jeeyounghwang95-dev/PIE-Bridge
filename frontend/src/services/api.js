@@ -17,7 +17,7 @@ async function post(path, body) {
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "알 수 없는 오류" }));
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail ?? `HTTP ${res.status}`);
   }
 
@@ -28,12 +28,14 @@ async function post(path, body) {
 /**
  * @param {string} base64Image  - 프론트에서 리사이징된 base64 문자열
  * @param {string} userId
- * @returns {Promise<{passed: boolean, reason: string, obstacles_detected: string[]}>}
+ * @param {"ko"|"en"} lang
+ * @returns {Promise<{passed: boolean, reason: string, obstacles_detected: object[]}>}
  */
-export function analyzeImage(base64Image, userId = "anonymous") {
+export function analyzeImage(base64Image, userId = "anonymous", lang = "ko") {
   return post("/api/ai/analyze-image", {
     base64_image: base64Image,
     user_id: userId,
+    lang,
   });
 }
 
@@ -46,6 +48,7 @@ export function analyzeImage(base64Image, userId = "anonymous") {
  * @param {boolean}  boardDetected
  * @param {string}   hamsterFacing
  * @param {string}   hamsterPosition  - 햄스터봇 위치 (1단계 분석 결과)
+ * @param {"ko"|"en"} lang
  * @returns {Promise<{steps: object[], summary: string}>}
  */
 export function generatePlan(
@@ -56,6 +59,7 @@ export function generatePlan(
   boardDetected = false,
   hamsterFacing = "unknown",
   hamsterPosition = "",
+  lang = "ko",
 ) {
   return post("/api/ai/generate-plan", {
     base64_image: base64Image,
@@ -65,6 +69,7 @@ export function generatePlan(
     board_detected: boardDetected,
     hamster_facing: hamsterFacing,
     hamster_position: hamsterPosition,
+    lang,
   });
 }
 
@@ -78,6 +83,7 @@ export function generatePlan(
  * @param {string} studentGoal
  * @param {string} hamsterPosition
  * @param {Array<{name:string, position:string}>} obstacles
+ * @param {"ko"|"en"} lang
  */
 export function generateCode(
   actionPlan,
@@ -88,6 +94,7 @@ export function generateCode(
   studentGoal = "",
   hamsterPosition = "",
   obstacles = [],
+  lang = "ko",
 ) {
   return post("/api/ai/generate-code", {
     action_plan: actionPlan,
@@ -98,5 +105,6 @@ export function generateCode(
     student_goal: studentGoal,
     hamster_position: hamsterPosition,
     obstacles,
+    lang,
   });
 }

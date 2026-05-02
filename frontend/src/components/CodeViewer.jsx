@@ -14,29 +14,32 @@
 import { useState, useCallback } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useT } from "../i18n/LanguageContext";
 
 // ── 상수 ─────────────────────────────────────────────────────
 const COPY_RESET_DELAY_MS = 2500;
 
-const CHOICE_INFO = {
-  1: { label: "이대로 실행하기",    desc: "원래 계획 그대로 구현",        bg: "bg-indigo-50", text: "text-indigo-800", border: "border-indigo-300" },
-  2: { label: "더 안전하게",        desc: "속도를 낮춰서 천천히",          bg: "bg-green-50",  text: "text-green-800",  border: "border-green-300"  },
-  4: { label: "장애물 회피 우선",   desc: "사진 기준 충돌 위험 시 회피 우선", bg: "bg-amber-50",  text: "text-amber-800",  border: "border-amber-300"  },
-  5: { label: "더 효율적으로",      desc: "최단 경로로 최적화",            bg: "bg-purple-50", text: "text-purple-800", border: "border-purple-300" },
+const CHOICE_STYLE = {
+  1: { bg: "bg-indigo-50", text: "text-indigo-800", border: "border-indigo-300" },
+  2: { bg: "bg-green-50",  text: "text-green-800",  border: "border-green-300"  },
+  4: { bg: "bg-amber-50",  text: "text-amber-800",  border: "border-amber-300"  },
+  5: { bg: "bg-purple-50", text: "text-purple-800", border: "border-purple-300" },
 };
 
 function CodeConditionBadges({ choiceId, boardDetected }) {
-  const info = CHOICE_INFO[choiceId];
+  const { t } = useT();
+  const style = CHOICE_STYLE[choiceId];
+  const label = choiceId ? t(`code.choice${choiceId}.label`) : "";
   return (
     <div className="flex flex-wrap gap-1.5">
-      {info && (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-extrabold border-2 ${info.bg} ${info.text} ${info.border}`}>
-          {info.label}
+      {style && label && (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-extrabold border-2 ${style.bg} ${style.text} ${style.border}`}>
+          {label}
         </span>
       )}
       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-extrabold border-2
         ${boardDetected ? "bg-sky-50 text-sky-700 border-sky-300" : "bg-gray-100 text-gray-600 border-gray-300"}`}>
-        {boardDetected ? "발판 보드 방식" : "시간 제어 방식"}
+        {boardDetected ? t("code.condition.board") : t("code.condition.time")}
       </span>
     </div>
   );
@@ -44,38 +47,42 @@ function CodeConditionBadges({ choiceId, boardDetected }) {
 
 // ── 로딩 스피너 (Tailwind 애니메이션) ──────────────────────
 function LoadingSpinner() {
+  const { t } = useT();
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-20">
       <div className="w-20 h-20 border-4 border-sky-300 border-t-sky-500 rounded-full animate-spin" />
       <p className="text-sky-600 font-extrabold text-2xl animate-pulse">
-        선생님이 코드를 만들고 있어요...
+        {t("code.loading")}
       </p>
     </div>
   );
 }
 
 function ErrorBanner({ message }) {
+  const { t } = useT();
   return (
     <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-      <p className="font-bold text-red-700">문제가 생겼어요</p>
+      <p className="font-bold text-red-700">{t("code.error.title")}</p>
       <p className="text-red-600 text-sm mt-1">{message}</p>
     </div>
   );
 }
 
 function SafetyBlockBanner({ message }) {
+  const { t } = useT();
   return (
     <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
-      <p className="font-bold text-amber-800 text-lg">잠깐만요</p>
+      <p className="font-bold text-amber-800 text-lg">{t("code.safety.title")}</p>
       <p className="text-amber-700 mt-1">{message}</p>
       <p className="text-amber-600 text-sm mt-2">
-        다른 방법으로 다시 시도해 볼까요?
+        {t("code.safety.tryAnother")}
       </p>
     </div>
   );
 }
 
 function TeacherExplanation({ text }) {
+  const { t } = useT();
   const paragraphs = String(text ?? "")
     .split(/\n+/)
     .map((p) => p.trim())
@@ -83,7 +90,7 @@ function TeacherExplanation({ text }) {
 
   return (
     <div className="mb-2">
-      <p className="text-xs font-extrabold text-sky-600 mb-1 tracking-wide">AI 선생님 설명</p>
+      <p className="text-xs font-extrabold text-sky-600 mb-1 tracking-wide">{t("code.teacher.label")}</p>
       <div className="bg-sky-50 border-2 border-sky-200 rounded-xl px-3 py-2 shadow-sm">
         {paragraphs.length > 0 ? (
           paragraphs.map((p, i) => (
@@ -104,6 +111,7 @@ function TeacherExplanation({ text }) {
 
 // ── 복사 버튼 ────────────────────────────────────────────────
 function CopyButton({ code }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [isDebouncing, setIsDebouncing] = useState(false); // 3초 쿨타임
 
@@ -151,9 +159,9 @@ function CopyButton({ code }) {
           : "bg-sky-500 hover:bg-sky-600 text-white cursor-pointer hover:shadow-lg"
         }
       `}
-      title={copied ? "복사 완료" : "파이썬 코드를 클립보드에 복사합니다"}
+      title={copied ? t("code.copy.titleDone") : t("code.copy.title")}
     >
-      <span>{copied ? "복사 완료" : "파이썬 코드 복사하기"}</span>
+      <span>{copied ? t("code.copy.done") : t("code.copy.idle")}</span>
     </button>
   );
 }
@@ -222,14 +230,15 @@ function PlanStep({ step, action, detail, faded = false }) {
 }
 
 function PlanComparisonSection({ planChanged, changeReason, originalPlan, modifiedSteps }) {
+  const { t } = useT();
   const originalSteps = originalPlan?.steps ?? [];
 
   if (!planChanged) {
     return (
       <div className="rounded-lg border-2 border-gray-200 bg-gray-50 p-2 space-y-1">
-        <p className="font-bold text-gray-600 text-xs">이동 계획 변경 여부</p>
+        <p className="font-bold text-gray-600 text-xs">{t("code.compare.unchangedTitle")}</p>
         <div className="px-2.5 py-1.5 bg-white rounded-md border border-gray-200">
-          <p className="font-bold text-gray-700 text-xs">변한 계획이 없어요</p>
+          <p className="font-bold text-gray-700 text-xs">{t("code.compare.unchangedBody")}</p>
           {changeReason && (
             <p className="text-gray-500 text-xs mt-0.5">{changeReason}</p>
           )}
@@ -240,13 +249,13 @@ function PlanComparisonSection({ planChanged, changeReason, originalPlan, modifi
 
   return (
     <div className="rounded-xl border-2 border-orange-200 bg-orange-50 p-2.5 space-y-2">
-      <p className="font-bold text-orange-700 text-xs">이동 계획이 바뀌었어요</p>
+      <p className="font-bold text-orange-700 text-xs">{t("code.compare.changedTitle")}</p>
       {changeReason && (
         <p className="text-orange-600 text-xs px-1">{changeReason}</p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
-          <p className="text-xs font-bold text-gray-500">원래 계획</p>
+          <p className="text-xs font-bold text-gray-500">{t("code.compare.original")}</p>
           <div className="space-y-1.5">
             {originalSteps.map((s) => (
               <PlanStep key={s.step} step={s.step} action={s.action} detail={s.detail} faded={true} />
@@ -254,7 +263,7 @@ function PlanComparisonSection({ planChanged, changeReason, originalPlan, modifi
           </div>
         </div>
         <div className="space-y-2">
-          <p className="text-xs font-bold text-orange-600">바뀐 계획</p>
+          <p className="text-xs font-bold text-orange-600">{t("code.compare.modified")}</p>
           <div className="space-y-1.5">
             {modifiedSteps.map((s) => (
               <PlanStep key={s.step} step={s.step} action={s.action} detail={s.detail} />
@@ -267,20 +276,21 @@ function PlanComparisonSection({ planChanged, changeReason, originalPlan, modifi
 }
 
 function PasteGuide() {
+  const { t } = useT();
   const steps = [
-    "위 버튼을 눌러 코드를 복사해요",
-    "블록컴포저 사이트를 열어요",
-    "코드 창에 Ctrl+V 로 붙여넣기 해요",
-    "실행 버튼을 눌러 햄스터봇을 움직여요",
+    t("code.guide.s1"),
+    t("code.guide.s2"),
+    t("code.guide.s3"),
+    t("code.guide.s4"),
   ];
 
   return (
     <div className="p-2 bg-green-50 border-2 border-green-200 rounded-lg h-full">
-      <p className="font-extrabold text-green-800 text-xs mb-1">다음 단계: IDE에서 실행하기</p>
+      <p className="font-extrabold text-green-800 text-xs mb-1">{t("code.guide.title")}</p>
       <ol className="space-y-0.5">
         {steps.map((text, i) => (
           <li key={i} className="text-xs text-green-700 font-semibold">
-            <strong>{i + 1}단계.</strong> {text}
+            <strong>{t("code.guide.step", { n: i + 1 })}</strong> {text}
           </li>
         ))}
       </ol>
@@ -289,43 +299,35 @@ function PasteGuide() {
 }
 
 // ── AI 선생님의 계획 평가 (SMILE FACE 3단계) ────────────────
-const SMILE_LEVELS = [
-  {
-    id: "good",
+const SMILE_LEVEL_STYLE = {
+  good: {
     emoji: "😀",
-    label: "좋아요",
-    desc: "계획이 잘 짜여졌어요",
     bg: "bg-green-50",
     border: "border-green-300",
     text: "text-green-700",
     activeBg: "bg-green-500",
     activeBorder: "border-green-600",
   },
-  {
-    id: "soso",
+  soso: {
     emoji: "😐",
-    label: "보통",
-    desc: "그저 그래요",
     bg: "bg-yellow-50",
     border: "border-yellow-300",
     text: "text-yellow-700",
     activeBg: "bg-yellow-400",
     activeBorder: "border-yellow-500",
   },
-  {
-    id: "hard",
+  hard: {
     emoji: "😟",
-    label: "아쉬워요",
-    desc: "계획이 부족해요",
     bg: "bg-red-50",
     border: "border-red-300",
     text: "text-red-700",
     activeBg: "bg-red-500",
     activeBorder: "border-red-600",
   },
-];
+};
 
 function PlanEvaluation({ codeKey, onEvaluate }) {
+  const { t } = useT();
   const [selected, setSelected] = useState(null);
 
   // 새 코드가 들어오면 평가 상태 초기화 (codeKey 변경 감지)
@@ -341,14 +343,21 @@ function PlanEvaluation({ codeKey, onEvaluate }) {
     onEvaluate?.(level.id);
   };
 
+  const levels = ["good", "soso", "hard"].map((id) => ({
+    id,
+    label: t(`code.eval.${id}.label`),
+    desc: t(`code.eval.${id}.desc`),
+    ...SMILE_LEVEL_STYLE[id],
+  }));
+
   return (
     <div className="p-2 bg-sky-50 border-2 border-sky-200 rounded-lg h-full flex flex-col">
-      <p className="font-extrabold text-sky-800 text-xs mb-1">AI 선생님의 계획 평가하기</p>
+      <p className="font-extrabold text-sky-800 text-xs mb-1">{t("code.eval.title")}</p>
       <p className="text-[0.65rem] text-sky-600 font-semibold mb-2">
-        선생님의 계획이 어땠는지 알려주세요
+        {t("code.eval.subtitle")}
       </p>
       <div className="grid grid-cols-3 gap-1.5 flex-1">
-        {SMILE_LEVELS.map((lv) => {
+        {levels.map((lv) => {
           const isSelected = selected === lv.id;
           const isDimmed = selected && !isSelected;
           return (
@@ -368,14 +377,14 @@ function PlanEvaluation({ codeKey, onEvaluate }) {
               title={lv.desc}
             >
               <span className="text-2xl leading-none">{lv.emoji}</span>
-              <span className="text-[0.7rem] font-extrabold leading-tight">{lv.label}</span>
+              <span className="text-[0.7rem] font-extrabold leading-tight text-center">{lv.label}</span>
             </button>
           );
         })}
       </div>
       {selected && (
         <p className="mt-1.5 text-[0.65rem] text-sky-700 font-bold text-center">
-          평가가 기록되었어요!
+          {t("code.eval.recorded")}
         </p>
       )}
     </div>
@@ -387,17 +396,6 @@ function PlanEvaluation({ codeKey, onEvaluate }) {
 // 메인 컴포넌트: CodeViewer
 // ─────────────────────────────────────────────────────────────
 
-/**
- * CodeViewer Props:
- *
- * @param {boolean}  isLoading      - 코드 생성 중 로딩 상태
- * @param {string}   explanation    - AI 선생님의 Vibe-Explanation 텍스트
- * @param {string}   pythonCode     - 생성된 파이썬 코드 문자열
- * @param {string}   error          - 에러 메시지 (없으면 null)
- * @param {boolean}  safetyBlocked  - 안전 필터 차단 여부
- * @param {string}   safetyMessage  - 안전 필터 차단 메시지
- * @param {boolean}  replan         - 재계획 요청 여부 (선택지 3번)
- */
 export default function CodeViewer({
   isLoading = false,
   explanation = "",
@@ -414,6 +412,8 @@ export default function CodeViewer({
   modifiedSteps = [],
   onEvaluate = null,
 }) {
+  const { t } = useT();
+
   // ── 로딩 상태 ──────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -445,9 +445,9 @@ export default function CodeViewer({
     return (
       <section className="w-full max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-md">
         <div className="text-center py-8">
-          <p className="text-xl font-bold text-sky-600">새로운 계획을 세워볼까요?</p>
+          <p className="text-xl font-bold text-sky-600">{t("code.replan.title")}</p>
           <p className="text-gray-500 text-sm mt-1">
-            왼쪽 단계에서 '다시 계획 세우기' 버튼을 눌러 주세요.
+            {t("code.replan.body")}
           </p>
         </div>
       </section>
@@ -466,7 +466,7 @@ export default function CodeViewer({
         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full
                          bg-white text-sky-600 font-black text-xs shadow-sm">3</span>
         <h2 className="text-base font-black text-white tracking-tight">
-          AI 선생님이 코드를 만들었어요
+          {t("code.title")}
         </h2>
       </div>
       <div className="p-2.5 space-y-2">
@@ -506,31 +506,3 @@ export default function CodeViewer({
     </section>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// 사용 예시 (부모 컴포넌트에서):
-//
-// const [codeData, setCodeData] = useState(null);
-// const [loading, setLoading] = useState(false);
-//
-// const handleChoiceClick = async (choice) => {
-//   setLoading(true);
-//   const res = await fetch("/api/ai/generate-code", {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({ action_plan, student_choice: choice, user_id }),
-//   });
-//   const data = await res.json();
-//   setCodeData(data);
-//   setLoading(false);
-// };
-//
-// <CodeViewer
-//   isLoading={loading}
-//   explanation={codeData?.explanation}
-//   pythonCode={codeData?.python_code}
-//   safetyBlocked={codeData?.blocked}
-//   safetyMessage={codeData?.message}
-//   replan={codeData?.replan}
-// />
-// ─────────────────────────────────────────────────────────────

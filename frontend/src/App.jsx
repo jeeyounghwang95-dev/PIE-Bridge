@@ -5,41 +5,74 @@ import WebcamCapture    from "./components/WebcamCapture";
 import ChatAndPlan      from "./components/ChatAndPlan";
 import CodeViewer       from "./components/CodeViewer";
 import TeacherDashboard from "./components/TeacherDashboard";
+import { useT }         from "./i18n/LanguageContext";
 
 const USER_ID = "student_001";
 
 // ── 단계 진행 표시 바 ────────────────────────────────────────
-const STAGE_STEPS = [
-  { id: "capture", label: "1. 사진 찍기" },
-  { id: "plan",    label: "2. 계획 세우기" },
-  { id: "code",    label: "3. 코드 받기" },
-];
+const STAGE_IDS = ["capture", "plan", "code"];
 
 function ProgressBar({ currentStage }) {
-  const currentIdx = STAGE_STEPS.findIndex((s) => s.id === currentStage);
+  const { t } = useT();
+  const steps = STAGE_IDS.map((id) => ({ id, label: t(`app.progress.${id}`) }));
+  const currentIdx = steps.findIndex((s) => s.id === currentStage);
   return (
     <div className="flex items-center justify-center gap-1 py-1">
-      {STAGE_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const isDone    = i < currentIdx;
         const isCurrent = i === currentIdx;
         return (
           <div key={step.id} className="flex items-center gap-1">
             <div className={`
               flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold
-              transition-all duration-300 border-2
+              transition-all duration-300 border-2 whitespace-nowrap
               ${isCurrent ? "bg-sky-500 text-white border-sky-500 shadow-md scale-105" : ""}
               ${isDone    ? "bg-green-100 text-green-700 border-green-200" : ""}
               ${!isCurrent && !isDone ? "bg-white text-gray-400 border-gray-200" : ""}
             `}>
               <span>{step.label}</span>
             </div>
-            {i < STAGE_STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div className={`w-4 h-1 rounded-full transition-colors duration-300
                                ${i < currentIdx ? "bg-green-300" : "bg-gray-200"}`} />
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── 언어 토글 ──────────────────────────────────────────────
+function LanguageToggle() {
+  const { lang, setLang, t } = useT();
+  return (
+    <div
+      className="inline-flex items-center rounded-full border-2 border-sky-100 bg-white overflow-hidden text-xs font-extrabold"
+      title={t("app.header.langToggleTitle")}
+      role="group"
+      aria-label="Language"
+    >
+      <button
+        type="button"
+        onClick={() => setLang("ko")}
+        className={`px-2.5 py-1 transition-colors ${
+          lang === "ko" ? "bg-sky-500 text-white" : "text-sky-600 hover:bg-sky-50"
+        }`}
+        aria-pressed={lang === "ko"}
+      >
+        {t("lang.short.ko")}
+      </button>
+      <button
+        type="button"
+        onClick={() => setLang("en")}
+        className={`px-2.5 py-1 transition-colors ${
+          lang === "en" ? "bg-sky-500 text-white" : "text-sky-600 hover:bg-sky-50"
+        }`}
+        aria-pressed={lang === "en"}
+      >
+        {t("lang.short.en")}
+      </button>
     </div>
   );
 }
@@ -59,6 +92,7 @@ function initStats() {
 
 // ─────────────────────────────────────────────────────────────
 export default function App() {
+  const { t } = useT();
   const [platform]                        = useState("robomation");
   const [stage, setStage]                 = useState("capture");
   const [capturedImage, setCapturedImage] = useState(null);
@@ -127,13 +161,13 @@ export default function App() {
       <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm
                           border-b border-sky-100 shadow-sm">
         <div className="max-w-screen-2xl mx-auto px-5">
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between gap-3 py-2">
             <button
               type="button"
               onClick={handleResetToStart}
               className="flex items-center gap-2 group cursor-pointer focus:outline-none
-                         focus-visible:ring-2 focus-visible:ring-sky-300 rounded-lg"
-              title="처음 페이지로 돌아가기"
+                         focus-visible:ring-2 focus-visible:ring-sky-300 rounded-lg shrink-0"
+              title={t("app.brand.homeTitle")}
             >
               <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-sky-300 to-sky-500
                               flex items-center justify-center
@@ -141,48 +175,49 @@ export default function App() {
                               transition-transform group-hover:scale-110 group-hover:rotate-3">
                 <img
                   src="/mascots/hamster-wave.png"
-                  alt="햄스터봇"
+                  alt={t("app.brand.title")}
                   className="w-full h-full object-contain"
                   onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { textContent: '🐹' })); }}
                 />
               </div>
               <div className="text-left">
                 <h1 className="font-black text-xl text-sky-600 leading-none tracking-tight
-                               group-hover:text-sky-700 transition-colors">PIE BRIDGE</h1>
-                <p className="text-xs text-gray-400 leading-none mt-1">
-                  블록코딩에서 파이썬 AI코딩으로
+                               group-hover:text-sky-700 transition-colors whitespace-nowrap">{t("app.brand.title")}</h1>
+                <p className="text-xs text-gray-400 leading-none mt-1 whitespace-nowrap">
+                  {t("app.brand.subtitle")}
                 </p>
               </div>
             </button>
 
-            <div className="flex-1 flex justify-center">
+            <div className="flex-1 flex justify-center min-w-0">
               <ProgressBar currentStage={stage} />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {stage !== "capture" && (
                 <button
                   onClick={handleResetToStart}
                   className="px-4 py-1.5 text-xs font-extrabold text-sky-600
-                             hover:bg-sky-50 rounded-full transition-colors border-2 border-sky-100"
+                             hover:bg-sky-50 rounded-full transition-colors border-2 border-sky-100 whitespace-nowrap"
                 >
-                  처음으로
+                  {t("app.header.restart")}
                 </button>
               )}
               <button
                 onClick={() => setIsDashboardOpen((v) => !v)}
                 className={`
-                  px-4 py-1.5 text-xs font-extrabold rounded-full
+                  px-4 py-1.5 text-xs font-extrabold rounded-full whitespace-nowrap
                   transition-colors border-2 inline-flex items-center gap-1.5
                   ${isDashboardOpen
                     ? "bg-sky-500 text-white border-sky-500 shadow-md"
                     : "text-sky-600 hover:bg-sky-50 border-sky-100"}
                 `}
-                title="교사 대시보드 열기/닫기"
+                title={t("app.header.dashboardTitle")}
               >
                 <span>📊</span>
-                <span>대시보드</span>
+                <span>{t("app.header.dashboard")}</span>
               </button>
+              <LanguageToggle />
             </div>
           </div>
         </div>
@@ -241,7 +276,7 @@ export default function App() {
                     className="px-8 py-4 border-2 border-sky-200 hover:bg-sky-50
                                text-sky-700 font-extrabold text-lg rounded-full transition-colors shadow-sm"
                   >
-                    ← 다른 방법으로 다시 해볼게요
+                    {t("app.code.retry")}
                   </button>
                 </div>
               )}
@@ -270,12 +305,12 @@ export default function App() {
         `}
       >
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-sky-100 flex-shrink-0">
-          <span className="font-black text-sm text-sky-700">교사 대시보드</span>
+          <span className="font-black text-sm text-sky-700">{t("app.dashboard.title")}</span>
           <button
             onClick={() => setIsDashboardOpen(false)}
             className="w-7 h-7 flex items-center justify-center rounded-full
                        hover:bg-gray-100 text-gray-500 font-bold"
-            title="닫기"
+            title={t("app.dashboard.close")}
           >
             ✕
           </button>
@@ -287,7 +322,7 @@ export default function App() {
 
       {/* ── 푸터 ── */}
       <footer className="text-center py-3 text-xs text-gray-400">
-        PIE BRIDGE · © JeeyoungHwang/SNUE
+        {t("app.footer")}
       </footer>
     </div>
   );

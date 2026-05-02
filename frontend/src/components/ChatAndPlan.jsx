@@ -2,46 +2,36 @@
 //
 // PIE BRIDGE - 목표 입력 + 행동 계획 표시 + 5가지 선택 컴포넌트
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { generatePlan, generateCode } from "../services/api";
+import { useT } from "../i18n/LanguageContext";
 
 const CODE_BTN_COOLTIME_MS = 3000;
 const MAX_GOAL_LENGTH = 100;
 
-// ── 선택지 정의 (이모지 제거) ──────────────────────────
-const CHOICES = [
-  {
-    id: 1,
-    label: "이대로 실행하기",
-    desc: "계획한 대로 그대로 실행해요",
+// 선택지 색상은 언어와 무관하므로 상수로 유지하고, 텍스트만 t()로 채운다.
+const CHOICE_STYLES = {
+  1: {
     color: "bg-gradient-to-br from-orange-400 to-rose-500 border-orange-500",
     textColor: "text-white",
   },
-  {
-    id: 4,
-    label: "장애물 회피 우선하기",
-    desc: "사진 속 장애물과 부딪힐 것 같으면 목표 도착보다 회피를 더 우선해요",
+  4: {
     color: "bg-gradient-to-br from-amber-400 to-orange-500 border-amber-500",
     textColor: "text-white",
   },
-  {
-    id: 5,
-    label: "더 효율적으로 계획하기",
-    desc: "최단 경로로 빠르게 이동해요",
+  5: {
     color: "bg-gradient-to-br from-fuchsia-500 to-purple-500 border-fuchsia-500",
     textColor: "text-white",
   },
-  {
-    id: 3,
-    label: "다시 계획 세우기",
-    desc: "같은 사진과 같은 목표로 계획만 새로 만들어요",
+  3: {
     color: "bg-white hover:bg-orange-50 border-orange-200",
     textColor: "text-orange-600",
   },
-];
+};
 
 // ── 목표 입력 폼 ─────────────────────────────────────────────
 function GoalInput({ value, onChange, onSubmit, isLoading, obstacles, boardDetected, hamsterPosition }) {
+  const { t } = useT();
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -60,12 +50,12 @@ function GoalInput({ value, onChange, onSubmit, isLoading, obstacles, boardDetec
               ? "bg-sky-50 text-sky-700 border-sky-300"
               : "bg-gray-50 text-gray-600 border-gray-300"}
           `}>
-            {boardDetected ? "발판(말판) 있음 - 보드 명령어 사용" : "발판 없음 - 시간 제어 방식"}
+            {boardDetected ? t("plan.boardDetected") : t("plan.boardNotDetected")}
           </span>
           {hamsterPosition && (
             <span className="px-2.5 py-1 rounded-full text-xs font-bold border-2
                              bg-sky-50 text-sky-700 border-sky-200">
-              햄스터봇 위치: {hamsterPosition}
+              {t("plan.hamsterPositionPrefix")}{hamsterPosition}
             </span>
           )}
         </div>
@@ -91,7 +81,7 @@ function GoalInput({ value, onChange, onSubmit, isLoading, obstacles, boardDetec
           value={value}
           onChange={(e) => onChange(e.target.value.slice(0, MAX_GOAL_LENGTH))}
           onKeyDown={handleKeyDown}
-          placeholder={"햄스터봇에게 어떻게 움직이면 좋을까요?\n(예: 책 옆을 돌아서 지우개 앞으로 가줘)\nShift+Enter로 줄바꿈, Enter로 제출"}
+          placeholder={t("plan.goalCard.placeholder")}
           className="goal-input-textarea notebook-input w-full px-3 py-2 pb-6 text-sm rounded-2xl border-2 border-sky-300
                      focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100
                      placeholder-sky-300 disabled:bg-gray-50 disabled:text-gray-400
@@ -118,9 +108,9 @@ function GoalInput({ value, onChange, onSubmit, isLoading, obstacles, boardDetec
         {isLoading ? (
           <>
             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            계획 만드는 중...
+            {t("plan.submitting")}
           </>
-        ) : "계획 세우기"}
+        ) : t("plan.submit")}
       </button>
     </div>
   );
@@ -171,14 +161,22 @@ function PlanStepCard({ step, action, detail, isAnimated, isLast }) {
 
 // ── 5가지 선택 버튼 그룹 ─────────────────────────────────────
 function ChoiceButtons({ onChoose, selectedId, isCooltime }) {
+  const { t } = useT();
+  const choices = useMemo(() => [
+    { id: 1, label: t("plan.choice1.label"), desc: t("plan.choice1.desc"), ...CHOICE_STYLES[1] },
+    { id: 4, label: t("plan.choice4.label"), desc: t("plan.choice4.desc"), ...CHOICE_STYLES[4] },
+    { id: 5, label: t("plan.choice5.label"), desc: t("plan.choice5.desc"), ...CHOICE_STYLES[5] },
+    { id: 3, label: t("plan.choice3.label"), desc: t("plan.choice3.desc"), ...CHOICE_STYLES[3] },
+  ], [t]);
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-extrabold text-gray-700">
-        어떻게 실행할까요? 하나를 골라요.
+        {t("plan.choices.title")}
       </p>
 
       <div className="grid grid-cols-1 gap-2">
-        {CHOICES.map((choice) => {
+        {choices.map((choice) => {
           const isSelected = selectedId === choice.id;
           const isDisabled = isCooltime && !isSelected;
 
@@ -202,9 +200,9 @@ function ChoiceButtons({ onChoose, selectedId, isCooltime }) {
               </div>
               {isSelected && (
                 <span className={`ml-auto flex-shrink-0 font-extrabold text-[0.65rem]
-                                 rounded-full px-2 py-0.5
+                                 rounded-full px-2 py-0.5 whitespace-nowrap
                                  ${choice.id === 3 ? "bg-gray-800/10 text-gray-700" : "bg-white/30 text-white"}`}>
-                  선택됨
+                  {t("plan.choices.selected")}
                 </span>
               )}
             </button>
@@ -214,7 +212,7 @@ function ChoiceButtons({ onChoose, selectedId, isCooltime }) {
 
       {isCooltime && (
         <p className="text-xs text-gray-400 text-center animate-pulse font-semibold">
-          잠깐만요, 코드를 만들고 있어요. (3초 후 다시 선택할 수 있어요)
+          {t("plan.choices.cooltime")}
         </p>
       )}
     </div>
@@ -231,16 +229,17 @@ function PlanSummaryBanner({ summary }) {
 }
 
 function SafetyWarning({ message, onDismiss }) {
+  const { t } = useT();
   return (
     <div className="flex items-start gap-4 p-6 bg-amber-50 border-2 border-amber-300 rounded-2xl">
       <div className="flex-1 min-w-0">
-        <p className="font-extrabold text-amber-800 text-xl">잠깐만요</p>
+        <p className="font-extrabold text-amber-800 text-xl">{t("plan.safety.headline")}</p>
         <p className="text-amber-700 text-base mt-2 whitespace-pre-wrap font-semibold">{message}</p>
       </div>
       <button
         onClick={onDismiss}
         className="flex-shrink-0 text-amber-500 hover:text-amber-700 text-2xl leading-none font-bold"
-        title="닫기"
+        title={t("plan.safety.close")}
       >
         X
       </button>
@@ -249,6 +248,7 @@ function SafetyWarning({ message, onDismiss }) {
 }
 
 function ErrorBanner({ message, onRetry }) {
+  const { t } = useT();
   return (
     <div className="flex items-center gap-4 p-5 bg-red-50 border-2 border-red-200 rounded-2xl">
       <p className="text-red-700 text-base flex-1 font-semibold">{message}</p>
@@ -256,9 +256,9 @@ function ErrorBanner({ message, onRetry }) {
         <button
           onClick={onRetry}
           className="flex-shrink-0 px-5 py-2.5 bg-red-100 hover:bg-red-200
-                     text-red-700 text-sm font-extrabold rounded-full transition-colors"
+                     text-red-700 text-sm font-extrabold rounded-full transition-colors whitespace-nowrap"
         >
-          다시 시도
+          {t("plan.error.retry")}
         </button>
       )}
     </div>
@@ -286,6 +286,7 @@ export default function ChatAndPlan({
   onPlanGenerated,
   onChoiceMade,
 }) {
+  const { t, lang } = useT();
   const [goalLocal, setGoalLocal] = useState("");
   const goal = goalProp !== undefined ? goalProp : goalLocal;
   const setGoal = onGoalChange ?? setGoalLocal;
@@ -317,18 +318,18 @@ export default function ChatAndPlan({
     try {
       const result = await generatePlan(
         base64Image, goal, obstacles, userId,
-        boardDetected, hamsterFacing, hamsterPosition,
+        boardDetected, hamsterFacing, hamsterPosition, lang,
       );
 
       if (result.blocked) {
-        const msg = result.message ?? "위험한 내용이 감지되었어요.";
+        const msg = result.message ?? t("plan.error.dangerous");
         setSafetyMsg(msg);
         onSafetyBlock?.(goal.trim());
         return;
       }
 
       if (result.error || !Array.isArray(result.steps) || result.steps.length === 0) {
-        setError(result.error ?? "AI가 계획을 만들지 못했어요. 목표를 다시 입력해 볼까요?");
+        setError(result.error ?? t("plan.error.cantMake"));
         return;
       }
 
@@ -336,14 +337,14 @@ export default function ChatAndPlan({
       onPlanGenerated?.();
       onPlanReady?.(result);
       if (isReplan) {
-        setReplanNotice("같은 목표로 새 계획을 다시 만들었어요. 아래에서 다시 골라 보세요.");
+        setReplanNotice(t("plan.replanNotice"));
       }
     } catch (e) {
-      setError(e.message ?? "계획을 만들지 못했어요. 다시 시도해 볼까요?");
+      setError(e.message ?? t("plan.error.cantMakeRetry"));
     } finally {
       setPlanLoading(false);
     }
-  }, [goal, planLoading, base64Image, obstacles, userId, boardDetected, hamsterFacing, hamsterPosition, onSafetyBlock, onPlanGenerated, onPlanReady]);
+  }, [goal, planLoading, base64Image, obstacles, userId, boardDetected, hamsterFacing, hamsterPosition, lang, onSafetyBlock, onPlanGenerated, onPlanReady, t]);
 
   const handleGeneratePlan = useCallback(() => runGeneratePlan(false), [runGeneratePlan]);
 
@@ -374,16 +375,16 @@ export default function ChatAndPlan({
     try {
       const result = await generateCode(
         plan, choiceId, userId, platform, boardDetected,
-        goal, hamsterPosition, obstacles,
+        goal, hamsterPosition, obstacles, lang,
       );
       onCodeReady?.({ ...result, _selectedChoice: choiceId });
     } catch (e) {
-      setError(e.message ?? "코드를 만들지 못했어요. 다시 선택해 볼까요?");
+      setError(e.message ?? t("plan.error.code"));
       setSelectedChoice(null);
     } finally {
       setCodeLoading(false);
     }
-  }, [isCooltime, codeLoading, plan, userId, platform, boardDetected, goal, hamsterPosition, obstacles, onCodeReady, onChoiceMade, runGeneratePlan]);
+  }, [isCooltime, codeLoading, plan, userId, platform, boardDetected, goal, hamsterPosition, obstacles, lang, onCodeReady, onChoiceMade, runGeneratePlan, t]);
 
   return (
     <section className="w-full max-w-7xl mx-auto space-y-3">
@@ -392,20 +393,20 @@ export default function ChatAndPlan({
         <span className="inline-flex items-center justify-center w-8 h-8 rounded-full
                          bg-sky-500 text-white font-black text-base shadow-md">2</span>
         <h2 className="text-xl font-black text-gray-800 tracking-tight">
-          햄스터봇에게 뭘 시킬까요?
+          {t("plan.title")}
         </h2>
       </div>
 
       {!plan && (
         <div className="kid-card bg-white rounded-3xl shadow-xl border-4 border-sky-200 overflow-hidden">
           <div className="px-4 py-2 bg-gradient-to-r from-sky-300 to-sky-500 flex items-center gap-2">
-            <img src="/mascots/goal-icon.png" alt="목표"
+            <img src="/mascots/goal-icon.png" alt={t("plan.goalCard.iconAlt")}
                  className="w-9 h-9 object-contain drop-shadow animate-floaty" />
-            <p className="text-sm font-extrabold text-white tracking-wide">목표 입력</p>
+            <p className="text-sm font-extrabold text-white tracking-wide">{t("plan.goalCard.title")}</p>
           </div>
           <div className="p-4 space-y-3">
             <p className="speech-bubble text-sm text-sky-800 font-semibold">
-              사진 속 햄스터봇이 어떻게 움직였으면 좋겠는지 써 주세요.
+              {t("plan.goalCard.intro")}
             </p>
             <GoalInput
               value={goal}
@@ -458,13 +459,13 @@ export default function ChatAndPlan({
 
             <div className="kid-card bg-white rounded-3xl shadow-xl border-4 border-sky-200 overflow-hidden">
               <div className="px-4 py-2 bg-gradient-to-r from-sky-300 to-sky-500 flex items-center gap-2">
-                <img src="/mascots/goal-icon.png" alt="목표"
+                <img src="/mascots/goal-icon.png" alt={t("plan.goalCard.iconAlt")}
                      className="w-9 h-9 object-contain drop-shadow animate-floaty" />
-                <p className="text-sm font-extrabold text-white tracking-wide">목표 입력</p>
+                <p className="text-sm font-extrabold text-white tracking-wide">{t("plan.goalCard.title")}</p>
               </div>
               <div className="p-3 space-y-2">
                 <p className="speech-bubble text-xs text-sky-800 font-semibold">
-                  사진 속 햄스터봇이 어떻게 움직였으면 좋겠는지 써 주세요.
+                  {t("plan.goalCard.intro")}
                 </p>
                 <GoalInput
                   value={goal}
@@ -480,11 +481,11 @@ export default function ChatAndPlan({
 
             <div className="kid-card bg-white rounded-3xl shadow-xl border-4 border-emerald-200 overflow-hidden relative">
               <div className="px-4 py-2 bg-gradient-to-r from-emerald-300 to-emerald-500 flex items-center gap-2">
-                <img src="/mascots/ai-hamster.png" alt="AI 햄스터"
+                <img src="/mascots/ai-hamster.png" alt={t("plan.aiPlanIconAlt")}
                      className="w-9 h-9 object-contain drop-shadow animate-floaty" />
                 <p className="text-sm font-extrabold text-white tracking-wide">
-                  AI 선생님이 세운 계획
-                  {Array.isArray(plan.steps) && plan.steps.length > 0 && ` (총 ${plan.steps.length}단계)`}
+                  {t("plan.aiPlanTitle")}
+                  {Array.isArray(plan.steps) && plan.steps.length > 0 && t("plan.aiPlanSteps", { n: plan.steps.length })}
                 </p>
               </div>
               <div className="p-3 space-y-2 bg-gradient-to-b from-emerald-50/40 to-white">
@@ -501,7 +502,7 @@ export default function ChatAndPlan({
                 ))
               ) : (
                 <div className="py-2 px-3 bg-amber-50 border-2 border-amber-200 rounded-xl text-sm text-amber-700 font-semibold">
-                  계획을 가져오지 못했어요. 목표를 다시 입력해 볼까요?
+                  {t("plan.fallbackEmpty")}
                 </div>
               )}
               </div>
@@ -517,17 +518,17 @@ export default function ChatAndPlan({
                     <div className="w-5 h-5 border-4 border-orange-300 border-t-orange-500
                                     rounded-full animate-spin" />
                     <p className="text-orange-700 font-extrabold text-sm animate-pulse">
-                      선생님이 파이썬 코드를 만들고 있어요...
+                      {t("plan.codeLoading")}
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="kid-card bg-white rounded-3xl shadow-xl border-4 border-orange-200 overflow-hidden">
                   <div className="px-4 py-2 bg-gradient-to-r from-orange-300 to-orange-500 flex items-center gap-2">
-                    <img src="/mascots/trophy-kid.png" alt="실행"
+                    <img src="/mascots/trophy-kid.png" alt={t("plan.choices.iconAlt")}
                          className="w-9 h-9 object-contain drop-shadow animate-floaty" />
                     <p className="text-sm font-extrabold text-white tracking-wide">
-                      실행 방법 고르기
+                      {t("plan.choices.boxTitle")}
                     </p>
                   </div>
                   <div className="p-3 bg-gradient-to-b from-orange-50/40 to-white">

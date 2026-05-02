@@ -35,6 +35,7 @@ class ImageAnalysisRequest(BaseModel):
     """1-A단계: 이미지 품질 검사 요청"""
     base64_image: str = Field(..., description="프론트에서 리사이징된 base64 이미지")
     user_id: str = Field(default="anonymous", description="학생 식별자")
+    lang: str = Field(default="ko", description="UI 언어: 'ko' 또는 'en' — AI 자연어 출력에만 영향")
 
 
 class ObstacleItem(BaseModel):
@@ -54,6 +55,7 @@ class PlanRequest(BaseModel):
     board_detected: bool = Field(default=False, description="사진에서 말판(격자 보드) 감지 여부")
     hamster_facing: str = Field(default="unknown", description="햄스터봇 방향: toward_camera | away_from_camera | left | right | unknown")
     hamster_position: str = Field(default="", description="햄스터봇이 사진에서 위치한 곳 설명")
+    lang: str = Field(default="ko", description="UI 언어: 'ko' 또는 'en' — AI 자연어 출력에만 영향")
 
 
 class CodeRequest(BaseModel):
@@ -69,6 +71,7 @@ class CodeRequest(BaseModel):
         default_factory=list,
         description="1단계에서 감지된 장애물 목록 ({name, position})",
     )
+    lang: str = Field(default="ko", description="UI 언어: 'ko' 또는 'en' — AI 자연어 출력에만 영향")
 
 
 class SafetyBlockedResponse(BaseModel):
@@ -96,7 +99,7 @@ async def analyze_image(
     if len(req.base64_image) < 100:
         raise HTTPException(status_code=400, detail="이미지 데이터가 올바르지 않아요.")
 
-    result = await analyze_image_quality(req.base64_image)
+    result = await analyze_image_quality(req.base64_image, lang=req.lang)
 
     # 이미지 분석 로그 저장 (비동기, 실패해도 응답에는 영향 없음)
     await _log_action(
@@ -146,6 +149,7 @@ async def generate_plan(
         board_detected=req.board_detected,
         hamster_facing=req.hamster_facing,
         hamster_position=req.hamster_position,
+        lang=req.lang,
     )
 
     # 햄스터봇 움직임과 무관한 입력 감지
@@ -156,13 +160,19 @@ async def generate_plan(
             input_text=req.student_goal,
             reason="irrelevant_input",
         )
-        return SafetyBlockedResponse(
-            message=(
+        if req.lang == "en":
+            irrelevant_msg = (
+                "Your input doesn't seem related to moving the Hamster robot or its goal.\n"
+                "Please describe specifically how you want the Hamster robot to move.\n"
+                "e.g., 'Go around the book and stop in front of the eraser.'"
+            )
+        else:
+            irrelevant_msg = (
                 "입력한 내용이 햄스터봇의 움직임이나 목표와 관련이 없어 보여요.\n"
                 "구체적으로 햄스터봇이 어떻게 움직였으면 좋겠는지 다시 써주세요.\n"
                 "예: '책 옆을 돌아서 지우개 앞으로 가줘'"
             )
-        ).model_dump()
+        return SafetyBlockedResponse(message=irrelevant_msg).model_dump()
 
     await _log_action(
         db=db,
@@ -200,9 +210,14 @@ async def generate_code(
             choice=3,
             detail="legacy_replan_call",
         )
+        replan_msg = (
+            "Press the 'Replan' button above to make a new plan."
+            if req.lang == "en"
+            else "다시 계획을 세우려면 위쪽 '계획 다시 세우기' 버튼을 눌러 주세요."
+        )
         return {
             "replan": True,
-            "message": "다시 계획을 세우려면 위쪽 '계획 다시 세우기' 버튼을 눌러 주세요.",
+            "message": replan_msg,
         }
 
     # ── 선택지 1,2,4,5: 코드 생성 ─────────────────────────
@@ -217,6 +232,7 @@ async def generate_code(
         student_goal=req.student_goal,
         hamster_position=req.hamster_position,
         obstacles=[o.model_dump() for o in req.obstacles],
+        lang=req.lang,
     )
 
     # 학생 선택 로그 저장
