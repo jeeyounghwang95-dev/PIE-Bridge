@@ -949,7 +949,7 @@ async def generate_python_code(
             "   ⑤ 코드가 순서대로 어떻게 실행되는지 단계별로 설명\n"
             "   ⑥ 실제 로봇이 어떻게 움직일지 친절하게 설명\n"
         )
-        f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
+        + f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
         "반드시 JSON 형식으로만 대답해. 코드 안의 따옴표는 이스케이프해.\n\n"
         "JSON 스키마:\n"
         "{\n"
