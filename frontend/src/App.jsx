@@ -89,16 +89,25 @@ function LanguageToggle() {
 }
 
 // ── stats 초기값 ─────────────────────────────────────────────
+const PROMPT_LOG_MAX = 10;
+
 function initStats() {
   return {
     safetyBlocks: 0,
-    safetyLog: [],
+    // 학생이 입력한 모든 자연어 프롬프트 (최대 PROMPT_LOG_MAX개, 오래된 것부터 삭제)
+    // entry: { time, input, kind: 'safety' | 'normal' }
+    promptLog: [],
     planCount: 0,
     codeCount: 0,
     choiceCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
     evaluations: { good: 0, soso: 0, hard: 0 },
     startTime: Date.now(),
   };
+}
+
+function appendCapped(arr, entry, max) {
+  const next = [...arr, entry];
+  return next.length > max ? next.slice(next.length - max) : next;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -122,7 +131,11 @@ export default function App() {
   const addSafetyBlock = (input) => setStats((s) => ({
     ...s,
     safetyBlocks: s.safetyBlocks + 1,
-    safetyLog: [...s.safetyLog, { time: Date.now(), input }],
+    promptLog: appendCapped(s.promptLog, { time: Date.now(), input, kind: "safety" }, PROMPT_LOG_MAX),
+  }));
+  const addPromptLog = (input) => setStats((s) => ({
+    ...s,
+    promptLog: appendCapped(s.promptLog, { time: Date.now(), input, kind: "normal" }, PROMPT_LOG_MAX),
   }));
   const addPlan    = () => setStats((s) => ({ ...s, planCount:  s.planCount  + 1 }));
   const addCode    = () => setStats((s) => ({ ...s, codeCount:  s.codeCount  + 1 }));
@@ -261,6 +274,7 @@ export default function App() {
               onCodeReady={handleCodeReady}
               onPlanReady={handlePlanReady}
               onSafetyBlock={addSafetyBlock}
+              onPromptLog={addPromptLog}
               onPlanGenerated={addPlan}
               onChoiceMade={addChoice}
             />

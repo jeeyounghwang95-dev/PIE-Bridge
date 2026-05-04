@@ -81,28 +81,47 @@ function SafetyBlockBanner({ message }) {
   );
 }
 
+// 설명 텍스트를 문단으로 나눈다.
+// 1) 명시적 줄바꿈(\n\n / \n)이 있으면 그걸 우선
+// 2) 줄바꿈이 거의 없으면 2~3문장씩 묶어 자동으로 문단 분리 (KO 마침표/물음표/느낌표 + EN 마침표 모두 인식)
+function splitIntoParagraphs(text) {
+  const raw = String(text ?? "").trim();
+  if (!raw) return [];
+
+  // 명시적 줄바꿈이 있을 때
+  const byNewlines = raw.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  if (byNewlines.length >= 2) return byNewlines;
+
+  // 자동 문단 분리: 문장 단위로 자르고 2문장씩 묶기
+  const sentences = raw.match(/[^.!?。！？]+[.!?。！？]+["')\]]?\s*/g) || [raw];
+  const trimmed = sentences.map((s) => s.trim()).filter(Boolean);
+  const SENT_PER_PARA = 2;
+  const paras = [];
+  for (let i = 0; i < trimmed.length; i += SENT_PER_PARA) {
+    paras.push(trimmed.slice(i, i + SENT_PER_PARA).join(" "));
+  }
+  return paras;
+}
+
 function TeacherExplanation({ text }) {
   const { t } = useT();
-  const paragraphs = String(text ?? "")
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  const paragraphs = splitIntoParagraphs(text);
 
   return (
-    <div className="mb-2">
+    <div className="h-full flex flex-col">
       <p className="text-xs font-extrabold text-sky-600 mb-1 tracking-wide">{t("code.teacher.label")}</p>
-      <div className="bg-sky-50 border-2 border-sky-200 rounded-xl px-3 py-2 shadow-sm">
+      <div className="flex-1 bg-sky-50 border-2 border-sky-200 rounded-xl px-4 py-3 shadow-sm overflow-y-auto">
         {paragraphs.length > 0 ? (
           paragraphs.map((p, i) => (
             <p
               key={i}
-              className={`text-sky-900 leading-snug text-xs font-semibold indent-3 ${i < paragraphs.length - 1 ? "mb-2" : ""}`}
+              className={`text-sky-900 leading-relaxed text-sm font-semibold ${i < paragraphs.length - 1 ? "mb-3" : ""}`}
             >
               {p}
             </p>
           ))
         ) : (
-          <p className="text-sky-900 leading-snug text-xs font-semibold indent-3">{text}</p>
+          <p className="text-sky-900 leading-relaxed text-sm font-semibold">{text}</p>
         )}
       </div>
     </div>
@@ -484,21 +503,30 @@ export default function CodeViewer({
         />
       )}
 
-      {/* AI 선생님 설명: 좌우로 폭이 넓도록 전체 너비로 표시 */}
-      {explanation && (
-        <div className="min-w-0">
-          <TeacherExplanation text={explanation} />
+      {/* AI 선생님 설명 + 코드: 좌우 2단 (설명이 약 55%로 더 넓음) */}
+      {(explanation || pythonCode) && (
+        <div className="grid grid-cols-1 lg:grid-cols-[11fr_9fr] gap-3 items-stretch">
+          {/* 좌: AI 선생님 설명 */}
+          {explanation && (
+            <div className="min-w-0">
+              <TeacherExplanation text={explanation} />
+            </div>
+          )}
+
+          {/* 우: 코드 블록 */}
+          {pythonCode && (
+            <div className="min-w-0 flex flex-col">
+              <CodeBlock code={pythonCode} />
+            </div>
+          )}
         </div>
       )}
 
-      {/* 코드 + 붙여넣기 가이드 + 평가 */}
+      {/* 붙여넣기 가이드 + 평가 */}
       {pythonCode && (
-        <div className="space-y-2 min-w-0">
-          <CodeBlock code={pythonCode} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
-            <PasteGuide />
-            <PlanEvaluation codeKey={pythonCode} onEvaluate={onEvaluate} />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-stretch">
+          <PasteGuide />
+          <PlanEvaluation codeKey={pythonCode} onEvaluate={onEvaluate} />
         </div>
       )}
 

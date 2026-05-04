@@ -170,25 +170,33 @@ export default function TeacherDashboard({ stats, userId }) {
           </div>
         </div>
 
-        {stats.safetyBlocks > 0 && (
+        {stats.promptLog && stats.promptLog.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wide">
-              {t("dash.safety.title")}
+              {t("dash.promptLog.title", { n: stats.promptLog.length })}
             </p>
-            <div className="max-h-28 overflow-y-auto space-y-1">
-              {stats.safetyLog.slice().reverse().map((entry, i) => (
-                <div key={i} className="flex items-start gap-2 px-2 py-1.5 bg-red-50 rounded-lg border border-red-200">
-                  <span className="text-[0.65rem] text-red-400 flex-shrink-0 font-mono mt-0.5">
-                    {new Date(entry.time).toLocaleTimeString(safetyTimeLocale, { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <span className="text-xs text-red-700 break-all font-semibold">"{entry.input}"</span>
-                </div>
-              ))}
+            <div className="max-h-44 overflow-y-auto space-y-1">
+              {stats.promptLog.slice().reverse().map((entry, i) => {
+                const isSafety = entry.kind === "safety";
+                const wrap = isSafety
+                  ? "bg-red-50 border-red-200"
+                  : "bg-green-50 border-green-200";
+                const timeColor = isSafety ? "text-red-400" : "text-green-500";
+                const textColor = isSafety ? "text-red-700" : "text-green-800";
+                return (
+                  <div key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border ${wrap}`}>
+                    <span className={`text-[0.65rem] flex-shrink-0 font-mono mt-0.5 ${timeColor}`}>
+                      {new Date(entry.time).toLocaleTimeString(safetyTimeLocale, { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className={`text-xs break-all font-semibold ${textColor}`}>"{entry.input}"</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {stats.planCount === 0 && stats.safetyBlocks === 0 && (
+        {stats.planCount === 0 && (!stats.promptLog || stats.promptLog.length === 0) && (
           <div className="text-center py-3 text-gray-400 text-xs font-semibold">
             {t("dash.empty")}
           </div>

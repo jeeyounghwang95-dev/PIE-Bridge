@@ -195,6 +195,7 @@ export const translations = {
     "dash.eval.soso": "보통",
     "dash.eval.hard": "아쉬워요",
     "dash.safety.title": "안전 필터 차단 기록",
+    "dash.promptLog.title": "학생 입력 기록 (최근 {n}개)",
     "dash.empty": "아직 활동이 없어요. 학생이 사진을 찍으면 여기에 기록돼요.",
 
     // ── 언어 토글 ──
@@ -394,6 +395,7 @@ export const translations = {
     "dash.eval.soso": "OK",
     "dash.eval.hard": "Needs work",
     "dash.safety.title": "Safety filter blocks",
+    "dash.promptLog.title": "Student input log (latest {n})",
     "dash.empty": "No activity yet. When a student takes a photo, it will appear here.",
 
     // ── 언어 토글 ──

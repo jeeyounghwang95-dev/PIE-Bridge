@@ -283,6 +283,7 @@ export default function ChatAndPlan({
   onCodeReady,
   onPlanReady,
   onSafetyBlock,
+  onPromptLog,
   onPlanGenerated,
   onChoiceMade,
 }) {
@@ -315,6 +316,9 @@ export default function ChatAndPlan({
     setSelectedChoice(null);
     setPlanLoading(true);
 
+    const submittedGoal = goal.trim();
+    let loggedAsSafety = false;
+
     try {
       const result = await generatePlan(
         base64Image, goal, obstacles, userId,
@@ -324,7 +328,11 @@ export default function ChatAndPlan({
       if (result.blocked) {
         const msg = result.message ?? t("plan.error.dangerous");
         setSafetyMsg(msg);
-        onSafetyBlock?.(goal.trim());
+        // 새 입력일 때만 로그 (replan은 동일 프롬프트라 중복 방지)
+        if (!isReplan) {
+          onSafetyBlock?.(submittedGoal);
+          loggedAsSafety = true;
+        }
         return;
       }
 
@@ -343,8 +351,12 @@ export default function ChatAndPlan({
       setError(e.message ?? t("plan.error.cantMakeRetry"));
     } finally {
       setPlanLoading(false);
+      // 새 입력일 때만 일반 프롬프트 로그 (이미 safety로 기록된 경우는 제외)
+      if (!isReplan && !loggedAsSafety) {
+        onPromptLog?.(submittedGoal);
+      }
     }
-  }, [goal, planLoading, base64Image, obstacles, userId, boardDetected, hamsterFacing, hamsterPosition, lang, onSafetyBlock, onPlanGenerated, onPlanReady, t]);
+  }, [goal, planLoading, base64Image, obstacles, userId, boardDetected, hamsterFacing, hamsterPosition, lang, onSafetyBlock, onPromptLog, onPlanGenerated, onPlanReady, t]);
 
   const handleGeneratePlan = useCallback(() => runGeneratePlan(false), [runGeneratePlan]);
 
