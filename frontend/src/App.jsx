@@ -5,9 +5,20 @@ import WebcamCapture    from "./components/WebcamCapture";
 import ChatAndPlan      from "./components/ChatAndPlan";
 import CodeViewer       from "./components/CodeViewer";
 import TeacherDashboard from "./components/TeacherDashboard";
+import VLAExplainPopup  from "./components/VLAExplainPopup";
 import { useT }         from "./i18n/LanguageContext";
 
 const USER_ID = "student_001";
+
+// VLA 설명 팝업 "다시 보지 않기" 저장 키
+const VLA_HIDE_KEY = (stage) => `pie_bridge_vla_hide_${stage}`;
+const isVLAHidden = (stage) => {
+  try { return window.localStorage.getItem(VLA_HIDE_KEY(stage)) === "1"; }
+  catch { return false; }
+};
+const setVLAHidden = (stage) => {
+  try { window.localStorage.setItem(VLA_HIDE_KEY(stage), "1"); } catch { /* ignore */ }
+};
 
 // ── 단계 진행 표시 바 ────────────────────────────────────────
 const STAGE_IDS = ["capture", "plan", "code"];
@@ -106,6 +117,7 @@ export default function App() {
   const [goal, setGoal]                   = useState("");
   const [stats, setStats]                 = useState(initStats);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [vlaPopupStage, setVlaPopupStage] = useState(null);
 
   const addSafetyBlock = (input) => setStats((s) => ({
     ...s,
@@ -132,12 +144,14 @@ export default function App() {
     setCodeResult(null);
     setCurrentPlan(null);
     setStage("plan");
+    if (!isVLAHidden("plan")) setVlaPopupStage("plan");
   };
 
   const handleCodeReady = (result) => {
     setCodeResult(result);
     addCode();
     setStage("code");
+    if (!isVLAHidden("code")) setVlaPopupStage("code");
   };
 
   const handlePlanReady = (plan) => {
@@ -319,6 +333,15 @@ export default function App() {
           <TeacherDashboard stats={stats} userId={USER_ID} />
         </div>
       </aside>
+
+      {/* ── VLA 설명 팝업 ── */}
+      {vlaPopupStage && (
+        <VLAExplainPopup
+          stage={vlaPopupStage}
+          onClose={() => setVlaPopupStage(null)}
+          onDontShowAgain={(s) => setVLAHidden(s)}
+        />
+      )}
 
       {/* ── 푸터 ── */}
       <footer className="text-center py-3 text-xs text-gray-400">
