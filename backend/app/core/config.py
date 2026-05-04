@@ -21,8 +21,8 @@ class Settings(BaseSettings):
 
     # ── Anthropic API (1-B 행동 계획 생성용) ────────────────
     ANTHROPIC_API_KEY: str = ""
-    # PLAN_MODEL: Claude 모델 → Gemini로 되돌리려면 "gemini-2.5-flash" 로 변경
-    PLAN_MODEL: str = "claude-haiku-4-5-20251001"
+    # PLAN_MODEL: 1-B 행동 계획 생성용 (이미지 추론이 가장 어려운 단계 → Pro)
+    PLAN_MODEL: str = "gemini-2.5-pro"
 
     # ── PostgreSQL (Supabase) ───────────────────────────────
     # 형식: postgresql+asyncpg://user:password@host:5432/dbname
