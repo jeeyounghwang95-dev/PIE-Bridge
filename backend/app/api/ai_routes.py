@@ -56,6 +56,10 @@ class PlanRequest(BaseModel):
     hamster_facing: str = Field(default="unknown", description="햄스터봇 방향: toward_camera | away_from_camera | left | right | unknown")
     hamster_position: str = Field(default="", description="햄스터봇이 사진에서 위치한 곳 설명")
     lang: str = Field(default="ko", description="UI 언어: 'ko' 또는 'en' — AI 자연어 출력에만 영향")
+    # ── 재계획용: 학생의 실행 결과 비교 + 수정 제안 (Co-pilot 학습목표) ──
+    revision_expected: str = Field(default="", max_length=300, description="학생이 예상한 실행 결과")
+    revision_actual: str = Field(default="", max_length=300, description="실제로 일어난 결과")
+    revision_suggestion: str = Field(default="", max_length=300, description="학생이 제안한 수정 방향")
 
 
 class CodeRequest(BaseModel):
@@ -150,6 +154,9 @@ async def generate_plan(
         hamster_facing=req.hamster_facing,
         hamster_position=req.hamster_position,
         lang=req.lang,
+        revision_expected=req.revision_expected,
+        revision_actual=req.revision_actual,
+        revision_suggestion=req.revision_suggestion,
     )
 
     # 햄스터봇 움직임과 무관한 입력 감지

@@ -49,7 +49,9 @@ export function analyzeImage(base64Image, userId = "anonymous", lang = "ko") {
  * @param {string}   hamsterFacing
  * @param {string}   hamsterPosition  - 햄스터봇 위치 (1단계 분석 결과)
  * @param {"ko"|"en"} lang
- * @returns {Promise<{steps: object[], summary: string}>}
+ * @param {?{expected?:string, actual?:string, suggestion?:string}} revision
+ *        재계획 시 학생의 실행 결과 비교 + 수정 제안 (Co-pilot). 없으면 null.
+ * @returns {Promise<{steps: object[], summary: string, revision_reflection?: string}>}
  */
 export function generatePlan(
   base64Image,
@@ -60,6 +62,7 @@ export function generatePlan(
   hamsterFacing = "unknown",
   hamsterPosition = "",
   lang = "ko",
+  revision = null,
 ) {
   return post("/api/ai/generate-plan", {
     base64_image: base64Image,
@@ -70,6 +73,9 @@ export function generatePlan(
     hamster_facing: hamsterFacing,
     hamster_position: hamsterPosition,
     lang,
+    revision_expected: revision?.expected ?? "",
+    revision_actual: revision?.actual ?? "",
+    revision_suggestion: revision?.suggestion ?? "",
   });
 }
 

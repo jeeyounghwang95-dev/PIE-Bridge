@@ -228,6 +228,72 @@ function PlanSummaryBanner({ summary }) {
   );
 }
 
+// ── 수정 제안 패널 (Co-pilot: 예상 vs 실제 비교 + 수정 제안) ──
+function RevisionPanel({ onSubmit, isLoading }) {
+  const { t } = useT();
+  const [expected, setExpected] = useState("");
+  const [actual, setActual] = useState("");
+  const [suggestion, setSuggestion] = useState("");
+  const canSubmit = suggestion.trim().length > 0 && !isLoading;
+
+  const field = (label, value, onChange, placeholder, required) => (
+    <div className="space-y-1">
+      <label className="text-xs font-extrabold text-violet-700">
+        {label}
+        {required && <span className="text-rose-500"> *</span>}
+      </label>
+      <textarea
+        rows={2}
+        value={value}
+        onChange={(e) => onChange(e.target.value.slice(0, 300))}
+        placeholder={placeholder}
+        disabled={isLoading}
+        className="w-full px-3 py-2 text-sm rounded-xl border-2 border-violet-200
+                   focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-100
+                   placeholder-violet-300 disabled:bg-gray-50 disabled:text-gray-400
+                   resize-none shadow-inner"
+      />
+    </div>
+  );
+
+  return (
+    <div className="kid-card bg-white rounded-3xl shadow-xl border-4 border-violet-200 overflow-hidden">
+      <div className="px-4 py-2 bg-gradient-to-r from-violet-400 to-violet-600 flex items-center gap-2">
+        <span className="text-lg">🛠️</span>
+        <p className="text-sm font-extrabold text-white tracking-wide">{t("plan.revision.title")}</p>
+      </div>
+      <div className="p-4 space-y-3 bg-gradient-to-b from-violet-50/40 to-white">
+        <p className="speech-bubble text-xs text-violet-800 font-semibold">
+          {t("plan.revision.intro")}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {field(t("plan.revision.expectedLabel"), expected, setExpected, t("plan.revision.expectedPlaceholder"), false)}
+          {field(t("plan.revision.actualLabel"), actual, setActual, t("plan.revision.actualPlaceholder"), false)}
+        </div>
+        {field(t("plan.revision.suggestionLabel"), suggestion, setSuggestion, t("plan.revision.suggestionPlaceholder"), true)}
+        <button
+          onClick={() => onSubmit({ expected, actual, suggestion })}
+          disabled={!canSubmit}
+          className="game-btn w-full px-4 py-2.5 bg-gradient-to-br from-violet-400 to-violet-600
+                     hover:from-violet-500 hover:to-violet-700
+                     disabled:from-gray-300 disabled:to-gray-400
+                     text-white font-extrabold text-base rounded-2xl
+                     shadow-[0_4px_0_0_rgb(124,58,237)] hover:shadow-[0_6px_0_0_rgb(124,58,237)]
+                     disabled:shadow-[0_4px_0_0_rgb(156,163,175)]
+                     disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {t("plan.revision.submitting")}
+            </>
+          ) : t("plan.revision.submit")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SafetyWarning({ message, onDismiss }) {
   const { t } = useT();
   return (
@@ -304,7 +370,8 @@ export default function ChatAndPlan({
   const cooltimeRef = useRef(null);
 
   // 계획 생성 (최초 + 다시 계획 모두 사용)
-  const runGeneratePlan = useCallback(async (isReplan) => {
+  // revision: 재계획 시 학생의 실행 결과 비교 + 수정 제안 (Co-pilot). 없으면 null.
+  const runGeneratePlan = useCallback(async (isReplan, revision = null) => {
     if (!goal.trim() || planLoading) return;
 
     setSafetyMsg("");
@@ -322,7 +389,7 @@ export default function ChatAndPlan({
     try {
       const result = await generatePlan(
         base64Image, goal, obstacles, userId,
-        boardDetected, hamsterFacing, hamsterPosition, lang,
+        boardDetected, hamsterFacing, hamsterPosition, lang, revision,
       );
 
       if (result.blocked) {
@@ -345,7 +412,9 @@ export default function ChatAndPlan({
       onPlanGenerated?.();
       onPlanReady?.(result);
       if (isReplan) {
-        setReplanNotice(t("plan.replanNotice"));
+        // 수정 제안을 반영한 재계획이면 AI가 무엇을 어떻게 바꿨는지 보여준다.
+        const reflection = (result.revision_reflection ?? "").trim();
+        setReplanNotice(reflection || t("plan.replanNotice"));
       }
     } catch (e) {
       setError(e.message ?? t("plan.error.cantMakeRetry"));
@@ -397,6 +466,13 @@ export default function ChatAndPlan({
       setCodeLoading(false);
     }
   }, [isCooltime, codeLoading, plan, userId, platform, boardDetected, goal, hamsterPosition, obstacles, lang, onCodeReady, onChoiceMade, runGeneratePlan, t]);
+
+  // 수정 제안하기: 학생이 실행 결과를 비교하고 제안한 수정 방향을 반영해 계획을 다시 세움
+  const handleRevisionSubmit = useCallback((revision) => {
+    if (!revision?.suggestion?.trim() || planLoading) return;
+    onChoiceMade?.(3);
+    runGeneratePlan(true, revision);
+  }, [planLoading, runGeneratePlan, onChoiceMade]);
 
   return (
     <section className="w-full max-w-7xl mx-auto space-y-3">
@@ -555,6 +631,11 @@ export default function ChatAndPlan({
             </div>
 
           </div>
+
+          <RevisionPanel
+            onSubmit={handleRevisionSubmit}
+            isLoading={planLoading}
+          />
         </div>
       )}
     </section>

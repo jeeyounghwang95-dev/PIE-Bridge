@@ -406,6 +406,9 @@ async def generate_action_plan(
     hamster_facing: str = "unknown",
     hamster_position: str = "",
     lang: str = "ko",
+    revision_expected: str = "",
+    revision_actual: str = "",
+    revision_suggestion: str = "",
 ) -> dict[str, Any]:
     """
     학생이 입력한 목표와 사진 정보를 바탕으로
@@ -568,12 +571,36 @@ async def generate_action_plan(
             "Use units like 'cm' or 'cells' (for board mode) and clear directions like "
             "'forward', 'backward', 'turn left', 'turn right'. No emojis.\n\n"
         )
+    # ── 재계획용: 학생의 실행 결과 비교 + 수정 제안 블록 ──────
+    # 학생이 이전 계획을 실제 로봇으로 실행해보고 예상/실제를 비교한 뒤
+    # 자연어로 수정 방향을 제안하면, 그 제안을 반영해 계획을 다시 세운다.
+    has_revision = any(
+        (s or "").strip()
+        for s in (revision_expected, revision_actual, revision_suggestion)
+    )
+    revision_block = ""
+    if has_revision:
+        revision_block = (
+            "## [재계획] 학생의 실행 결과 비교 및 수정 제안 (최우선 반영)\n"
+            "학생이 이전 계획을 햄스터봇으로 직접 실행해본 뒤, 예상과 실제 결과를 비교하고\n"
+            "어떻게 고치면 좋을지 직접 제안했어. 아래 내용을 최우선으로 반영해서 계획을 다시 세워.\n"
+            f"- 학생이 예상한 결과: {revision_expected.strip() or '(미입력)'}\n"
+            f"- 실제 일어난 결과: {revision_actual.strip() or '(미입력)'}\n"
+            f"- 학생의 수정 제안: {revision_suggestion.strip() or '(미입력)'}\n"
+            "단, 햄스터봇이 할 수 있는 행동, 발판(말판) 경계, 장애물 회피 같은 안전 원칙을\n"
+            "벗어나지 않는 범위 안에서 제안을 반영해. 제안이 안전 원칙과 충돌하면 가장 가까운\n"
+            "안전한 방식으로 바꿔서 반영하고 그 이유를 설명해.\n"
+            "그리고 revision_reflection 필드에 '학생의 제안을 계획에 어떻게 반영했는지\n"
+            "(또는 왜 일부만/다르게 반영했는지)'를 초등학생 눈높이의 1~2문장으로 친절하게 적어.\n\n"
+        )
+
     prompt = (
         f"{lang_directive}"
         f'학생의 목표: "{student_goal}"\n'
         f"햄스터봇 현재 위치: {hamster_pos_str}\n"
         f"햄스터봇 화살표 방향(참고): {facing_note}\n"
         f"사진에서 발견된 장애물(햄스터봇 기준 위치 포함): {obstacles_str}\n\n"
+        f"{revision_block}"
         f"{direction_hint}\n"
         f"{board_boundary_rule}"
         "## [1단계] 관련성 판단\n"
@@ -626,7 +653,8 @@ async def generate_action_plan(
         '    {"step": 2, "action": "...", "detail": "..."},\n'
         '    {"step": N, "action": "...", "detail": "..."}\n'
         "  ],\n"
-        '  "summary": "전체 계획 요약 (1~2문장)"\n'
+        '  "summary": "전체 계획 요약 (1~2문장)",\n'
+        '  "revision_reflection": "수정 제안을 어떻게 반영했는지 (재계획일 때만 작성, 아니면 빈 문자열)"\n'
         "}\n\n"
         "관련 없는 입력일 때 반환 예시:\n"
         '{"irrelevant": true, "steps": [], "summary": ""}\n'
@@ -636,8 +664,8 @@ async def generate_action_plan(
             "\n\n## FINAL LANGUAGE OVERRIDE\n"
             "Any Korean text you saw in this prompt above is reference scaffolding only. "
             "EVERY natural-language field you OUTPUT (each step's 'action', each step's "
-            "'detail', and 'summary') MUST be written in natural English. Do not produce "
-            "any Korean characters in these output fields.\n"
+            "'detail', 'summary', and 'revision_reflection') MUST be written in natural "
+            "English. Do not produce any Korean characters in these output fields.\n"
             if lang == "en" else ""
         )
     )
@@ -676,6 +704,7 @@ async def generate_action_plan(
             f"{lang_directive}"
             f'학생의 목표: "{student_goal}"\n'
             f"사진에서 발견된 장애물: {obstacles_str}\n\n"
+            f"{revision_block}"
             "햄스터봇이 이동과 회전만으로 목표를 달성하는 계획을 JSON으로 만들어 줘.\n"
             "목표 지점에 실제로 도착하는 마지막 이동까지 모두 포함해 (2~8단계).\n"
             "반드시 아래 JSON 형식만 출력해:\n"
