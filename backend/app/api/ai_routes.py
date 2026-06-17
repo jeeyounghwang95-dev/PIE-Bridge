@@ -174,6 +174,33 @@ async def generate_plan(
             )
         return SafetyBlockedResponse(message=irrelevant_msg).model_dump()
 
+    # 목표물이 1단계 사진 분석에서 인식되지 않은 경우 (이미지로 확인 불가한 목표지점)
+    if plan.get("target_not_found"):
+        target_name = (plan.get("target_name") or "").strip()
+        await _log_safety(
+            db=db,
+            user_id=req.user_id,
+            input_text=req.student_goal,
+            reason="target_not_found",
+        )
+        if req.lang == "en":
+            quoted = f"'{target_name}' is" if target_name else "That target is"
+            target_msg = (
+                f"{quoted} not in the objects found in the photo, so it's a destination "
+                "the image data can't confirm.\n"
+                "Please take a photo that includes the target, or enter a goal using "
+                "an object that appears in the photo.\n"
+                "e.g., 'Go around the book and stop in front of the eraser.'"
+            )
+        else:
+            quoted = f"'{target_name}'은(는)" if target_name else "입력한 목표 지점은"
+            target_msg = (
+                f"{quoted} 사진에서 찾은 사물 목록에 없어서, 이미지 데이터로 확인할 수 없는 목표 지점이에요.\n"
+                "목표물이 보이도록 사진을 다시 찍거나, 사진에 보이는 사물로 목표를 다시 입력해 주세요.\n"
+                "예: '책 옆을 돌아서 지우개 앞으로 가줘'"
+            )
+        return SafetyBlockedResponse(message=target_msg).model_dump()
+
     await _log_action(
         db=db,
         user_id=req.user_id,

@@ -580,7 +580,21 @@ async def generate_action_plan(
         "학생의 목표가 햄스터봇의 이동·회전·목적지 도달과 관련이 있는지 먼저 판단해.\n"
         "관련 없는 입력 예시: 날씨 질문, 노래 가사, 무의미한 문자, 로봇과 무관한 이야기 등.\n"
         "관련 없다고 판단하면 irrelevant=true 를 반환하고 steps 는 빈 배열로 둬.\n\n"
-        "## [2단계] 행동 계획 (관련 있는 경우만)\n"
+        "## [1.5단계] 목표물(도착 대상) 존재 확인 (매우 중요)\n"
+        "1단계 사진 분석에서 인식된 사물은 위의 '사진에서 발견된 장애물' 목록이 전부야.\n"
+        "그 목록에 없는 사물은 사진(이미지 데이터)에 존재하지 않는 것으로 간주해.\n"
+        "학생의 목표가 '특정 사물'에 도착·접근하는 것이라면(예: '사과 앞으로', '컵까지 가줘'),\n"
+        "그 목표물이 위 목록에 실제로 있는지 먼저 확인해:\n"
+        "  - 목록의 사물 이름과 같거나 분명히 같은 사물(동의어 포함, 예: '사과'='빨간 과일')이면 → 정상 진행\n"
+        "  - 목표로 지목한 사물이 목록에 전혀 없으면 → 이미지 데이터에서 확인할 수 없는 목표지점이야.\n"
+        "    target_not_found=true 로 설정하고, target_name 에 학생이 말한 그 사물 이름을 적고,\n"
+        "    steps 는 빈 배열로 둬. 이 경우 절대로 계획을 지어내지 마. 없는 사물을 향한 경로를 만들면 안 돼.\n"
+        "다음 경우에는 target_not_found=false 로 두고 정상 진행해:\n"
+        "  - 특정 사물이 아니라 방향/거리/칸/발판 가장자리 등으로만 말한 경우\n"
+        "    (예: '앞으로 20cm', '오른쪽 위로 이동', '오른쪽으로 돌아', '구석으로', '앞으로 3칸')\n"
+        "  - 햄스터봇 자신을 가리키는 경우\n"
+        "  - 목표물이 목록에 있을지 없을지 확실하지 않은 경우 (애매하면 정상 진행을 우선)\n\n"
+        "## [2단계] 행동 계획 (관련 있고, 목표물이 존재하는 경우만)\n"
         f"{movement_rules}\n"
         "## 절대 금지 행동 (햄스터봇은 불가능)\n"
         "- 물체를 밀거나 치우기\n"
@@ -605,6 +619,8 @@ async def generate_action_plan(
         "JSON 스키마:\n"
         "{\n"
         '  "irrelevant": false,\n'
+        '  "target_not_found": false,\n'
+        '  "target_name": "",\n'
         '  "steps": [\n'
         f"{action_example}"
         '    {"step": 2, "action": "...", "detail": "..."},\n'
@@ -613,7 +629,9 @@ async def generate_action_plan(
         '  "summary": "전체 계획 요약 (1~2문장)"\n'
         "}\n\n"
         "관련 없는 입력일 때 반환 예시:\n"
-        '{"irrelevant": true, "steps": [], "summary": ""}'
+        '{"irrelevant": true, "steps": [], "summary": ""}\n'
+        "목표물이 사진에서 인식된 사물 목록에 없을 때 반환 예시:\n"
+        '{"target_not_found": true, "target_name": "사과", "steps": [], "summary": ""}'
         + (
             "\n\n## FINAL LANGUAGE OVERRIDE\n"
             "Any Korean text you saw in this prompt above is reference scaffolding only. "
@@ -641,6 +659,15 @@ async def generate_action_plan(
 
     if result.get("irrelevant"):
         return {"irrelevant": True}
+
+    # 목표물이 1단계 사진 분석에서 인식된 사물 목록에 없는 경우:
+    # 이미지 데이터로 확인할 수 없는 목표지점이므로 계획을 생성하지 않는다.
+    # (steps 빈 배열 재시도 로직보다 먼저 처리해야 계획이 지어내지지 않음)
+    if result.get("target_not_found"):
+        return {
+            "target_not_found": True,
+            "target_name": str(result.get("target_name", "")).strip(),
+        }
 
     # steps가 유효하지 않으면 단순화된 프롬프트로 1회 재시도
     if not isinstance(result.get("steps"), list) or len(result["steps"]) == 0:
