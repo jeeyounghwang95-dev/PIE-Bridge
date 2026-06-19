@@ -952,6 +952,33 @@ async def generate_python_code(
         if lang == "en"
         else "한국어 주석 포함, 주석에도 이모지 금지"
     )
+    # ── 계획 충실도 규칙: 계획에 있는 동작만 코드로 구현 (LED/소리 등 임의 추가 금지) ──
+    if lang == "en":
+        plan_fidelity_rule = (
+            "## CODE MUST MATCH THE PLAN EXACTLY (very important)\n"
+            "- Implement ONLY the move/turn steps in '학생의 행동 계획' above, in the same order.\n"
+            "- Do NOT add any action that is not in the plan. In particular, NEVER add:\n"
+            "  LED color changes (`led.left`/`led.right`), buzzer/sound (`sound.buzz`),\n"
+            "  beeps, melodies, sensor reactions, waits-as-effects, or any 'arrival signal'.\n"
+            "- The reference docs include LED/sound examples ONLY as syntax samples. Use them\n"
+            "  ONLY if the plan explicitly contains that action. The plan here has none of those,\n"
+            "  so the code must contain ONLY distance-move blocks and turn helpers.\n"
+            "- One plan step = its move/turn block(s). Nothing before the first step and\n"
+            "  nothing after the last step except `return`.\n\n"
+        )
+    else:
+        plan_fidelity_rule = (
+            "## 코드는 계획과 정확히 일치해야 함 (매우 중요)\n"
+            "- 위 '학생의 행동 계획'에 있는 이동/회전 단계만, 같은 순서로 코드에 구현해.\n"
+            "- 계획에 없는 동작은 절대 추가하지 마. 특히 다음을 절대 넣지 마:\n"
+            "  LED 색 변경(`led.left`/`led.right`), 버저/소리(`sound.buzz`), 비프음, 멜로디,\n"
+            "  센서 반응, 효과용 대기, '도착 신호' 같은 연출.\n"
+            "- 참고 문서에 나오는 LED/소리 예시는 문법 샘플일 뿐이야. 계획에 그 동작이\n"
+            "  명시돼 있을 때만 사용해. 지금 계획에는 LED/소리가 없으니, 코드에는 오직\n"
+            "  거리 이동 블록과 회전 헬퍼만 있어야 해.\n"
+            "- 계획 한 단계 = 해당 이동/회전 블록. 첫 단계 이전이나 마지막 단계 이후에\n"
+            "  (`return` 외에) 다른 코드를 넣지 마.\n\n"
+        )
     prompt = (
         f"{lang_directive}"
         f"{rag_header}"
@@ -961,6 +988,7 @@ async def generate_python_code(
         f"{analysis_ctx}\n"
         f"## 학생의 행동 계획\n{plan_json}\n\n"
         f"## 구현 지침\n{choice_context}\n\n"
+        f"{plan_fidelity_rule}"
         "위 내용을 바탕으로 네 가지를 JSON으로 작성해 줘.\n"
         "모든 텍스트(change_reason, explanation, 코드 주석)에는 이모지(이모티콘)를 절대 사용하지 마.\n\n"
         "1. plan_changed: 구현 지침을 반영하면서 이동 경로나 단계 순서가 실질적으로 바뀌었으면 true,\n"
