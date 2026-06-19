@@ -27,6 +27,10 @@ const CHOICE_STYLES = {
     color: "bg-white hover:bg-orange-50 border-orange-200",
     textColor: "text-orange-600",
   },
+  6: {
+    color: "bg-gradient-to-br from-violet-400 to-violet-600 border-violet-500",
+    textColor: "text-white",
+  },
 };
 
 // ── 목표 입력 폼 ─────────────────────────────────────────────
@@ -167,6 +171,7 @@ function ChoiceButtons({ onChoose, selectedId, isCooltime }) {
     { id: 4, label: t("plan.choice4.label"), desc: t("plan.choice4.desc"), ...CHOICE_STYLES[4] },
     { id: 5, label: t("plan.choice5.label"), desc: t("plan.choice5.desc"), ...CHOICE_STYLES[5] },
     { id: 3, label: t("plan.choice3.label"), desc: t("plan.choice3.desc"), ...CHOICE_STYLES[3] },
+    { id: 6, label: t("plan.choice6.label"), desc: t("plan.choice6.desc"), ...CHOICE_STYLES[6] },
   ], [t]);
 
   return (
@@ -232,9 +237,10 @@ function PlanSummaryBanner({ summary }) {
 function RevisionPanel({ onSubmit, isLoading }) {
   const { t } = useT();
   const [expected, setExpected] = useState("");
-  const [actual, setActual] = useState("");
   const [suggestion, setSuggestion] = useState("");
-  const canSubmit = suggestion.trim().length > 0 && !isLoading;
+  // 예상되는 문제점 + 수정 제안 둘 다 필수
+  const canSubmit =
+    expected.trim().length > 0 && suggestion.trim().length > 0 && !isLoading;
 
   const field = (label, value, onChange, placeholder, required) => (
     <div className="space-y-1">
@@ -266,13 +272,10 @@ function RevisionPanel({ onSubmit, isLoading }) {
         <p className="speech-bubble text-xs text-violet-800 font-semibold">
           {t("plan.revision.intro")}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {field(t("plan.revision.expectedLabel"), expected, setExpected, t("plan.revision.expectedPlaceholder"), false)}
-          {field(t("plan.revision.actualLabel"), actual, setActual, t("plan.revision.actualPlaceholder"), false)}
-        </div>
+        {field(t("plan.revision.expectedLabel"), expected, setExpected, t("plan.revision.expectedPlaceholder"), true)}
         {field(t("plan.revision.suggestionLabel"), suggestion, setSuggestion, t("plan.revision.suggestionPlaceholder"), true)}
         <button
-          onClick={() => onSubmit({ expected, actual, suggestion })}
+          onClick={() => onSubmit({ expected, suggestion })}
           disabled={!canSubmit}
           className="game-btn w-full px-4 py-2.5 bg-gradient-to-br from-violet-400 to-violet-600
                      hover:from-violet-500 hover:to-violet-700
@@ -341,7 +344,7 @@ export default function ChatAndPlan({
   obstacles = [],
   hamsterPosition = "",
   userId = "anonymous",
-  platform = "entry",
+  platform = "robomation",
   boardDetected = false,
   hamsterFacing = "unknown",
   goal: goalProp,
@@ -432,6 +435,12 @@ export default function ChatAndPlan({
   const handleChoose = useCallback(async (choiceId) => {
     if (isCooltime || codeLoading) return;
 
+    // 선택지 6(수정 제안하기): 코드 생성 없이 수정 제안 폼만 토글
+    if (choiceId === 6) {
+      setSelectedChoice((prev) => (prev === 6 ? null : 6));
+      return;
+    }
+
     onChoiceMade?.(choiceId);
 
     // 선택지 3: 같은 사진/목표로 계획만 다시 세우기 (코드 생성 X)
@@ -469,7 +478,8 @@ export default function ChatAndPlan({
 
   // 수정 제안하기: 학생이 실행 결과를 비교하고 제안한 수정 방향을 반영해 계획을 다시 세움
   const handleRevisionSubmit = useCallback((revision) => {
-    if (!revision?.suggestion?.trim() || planLoading) return;
+    // 예상되는 문제점 + 수정 제안 둘 다 필수
+    if (!revision?.expected?.trim() || !revision?.suggestion?.trim() || planLoading) return;
     onChoiceMade?.(3);
     runGeneratePlan(true, revision);
   }, [planLoading, runGeneratePlan, onChoiceMade]);
@@ -632,10 +642,12 @@ export default function ChatAndPlan({
 
           </div>
 
-          <RevisionPanel
-            onSubmit={handleRevisionSubmit}
-            isLoading={planLoading}
-          />
+          {selectedChoice === 6 && (
+            <RevisionPanel
+              onSubmit={handleRevisionSubmit}
+              isLoading={planLoading}
+            />
+          )}
         </div>
       )}
     </section>

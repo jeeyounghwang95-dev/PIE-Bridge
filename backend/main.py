@@ -156,9 +156,7 @@ async def lifespan(app: FastAPI):
     # 2. ChromaDB RAG 빌드 (이미 있으면 건너뜀)
     try:
         logger.info("ChromaDB RAG 빌드 시작...")
-        rag_service.build_db(force_rebuild=False, platform="robomation")
-        # ⚠️ 일회성 재빌드: 엔트리 RAG 문서 변경 반영 (다음 시작 후 False 로 되돌릴 것)
-        rag_service.build_db(force_rebuild=True, platform="entry")
+        rag_service.build_db(force_rebuild=False)
         logger.info("ChromaDB RAG 준비 완료")
     except Exception as e:
         # RAG 실패해도 서버는 기동 (폴백 컨텍스트 사용)

@@ -66,6 +66,42 @@ ROBOMATION_WIKI_DIRECTIVE = (
     "5. 모든 코드는 RobomationLAB Block Composer 환경에서 즉시 실행 가능해야 한다.\n"
 )
 
+# ── 거리 이동 표준 참조 (로보메이션 전용, 무조건 이 블록만 사용) ──
+# 햄스터 S 의 모든 이동(앞/뒤/좌/우)은 말판 유무와 관계없이 아래 거리 이동 블록과
+# __turn_degree_left/right 헬퍼로만 생성해야 한다.
+# 라인 트레이싱(wheel.trace.*)은 절대 사용 금지.
+ROBOMATION_MOVEMENT_REFERENCE = (
+    "## 거리 이동 표준 참조 (이동은 무조건 이 블록만 사용)\n"
+    "햄스터 S 의 모든 이동(앞/뒤/좌/우)은 말판(격자 보드) 유무와 관계없이\n"
+    "아래 '거리 이동 블록' 과 회전 헬퍼로만 생성한다. 다른 이동 방식은 절대 금지.\n"
+    "특히 라인 트레이싱 / 선 따라가기 / `wheel.trace.speed`, `wheel.trace.gain`,\n"
+    "`wheel.trace.mode`, `wheel.trace.!mode` 같은 trace 코드는 한 줄도 생성하면 안 된다.\n"
+    "\n"
+    "### 앞으로 이동 (전진)\n"
+    "    if __('HamsterS*0:wheel.move').d != 0:\n"
+    "        __('HamsterS*0:wheel.move').d = 0\n"
+    "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 50)\n"
+    "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 50)\n"
+    "    __('HamsterS*0:wheel.move').d = __getDistance('HamsterS*0', 5, 'cm')\n"
+    "    await __('HamsterS*0:wheel.!move').w()\n"
+    "\n"
+    "### 뒤로 이동 (후진 — 속도에 음수 부호, 거리는 양수 유지)\n"
+    "    if __('HamsterS*0:wheel.move').d != 0:\n"
+    "        __('HamsterS*0:wheel.move').d = 0\n"
+    "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', -50)\n"
+    "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', -50)\n"
+    "    __('HamsterS*0:wheel.move').d = __getDistance('HamsterS*0', 5, 'cm')\n"
+    "    await __('HamsterS*0:wheel.!move').w()\n"
+    "\n"
+    "### 왼쪽 / 오른쪽 회전 (제자리 각도 회전 헬퍼)\n"
+    "    await __turn_degree_left('HamsterS*0', 90, True)\n"
+    "    await __turn_degree_right('HamsterS*0', 90, True)\n"
+    "\n"
+    "- 이동 거리(cm)와 회전 각도(도)만 행동 계획에 맞게 바꿔서 위 블록을 반복 배치한다.\n"
+    "- 각 동작 사이에는 `await asyncio.sleep(0.5)` 로 간격을 두면 안정적이다.\n"
+    "- 말판이 있을 때 '한 칸'은 적절한 cm(예: 10~12cm)로 환산해서 같은 거리 이동 블록으로 표현한다.\n"
+)
+
 # ── Gemini 클라이언트 (지연 초기화 - API 키 없이 임포트 가능) ─
 _client: genai.Client | None = None
 
@@ -571,21 +607,20 @@ async def generate_action_plan(
             "Use units like 'cm' or 'cells' (for board mode) and clear directions like "
             "'forward', 'backward', 'turn left', 'turn right'. No emojis.\n\n"
         )
-    # ── 재계획용: 학생의 실행 결과 비교 + 수정 제안 블록 ──────
-    # 학생이 이전 계획을 실제 로봇으로 실행해보고 예상/실제를 비교한 뒤
-    # 자연어로 수정 방향을 제안하면, 그 제안을 반영해 계획을 다시 세운다.
+    # ── 재계획용: AI 계획을 보고 학생이 제안한 수정 방향 블록 ──────
+    # 학생이 (실제 로봇을 움직여 보지 않고) AI가 세운 계획만 보고
+    # 예상되는 문제점과 수정 방향을 제안하면, 그 제안을 반영해 계획을 다시 세운다.
     has_revision = any(
         (s or "").strip()
-        for s in (revision_expected, revision_actual, revision_suggestion)
+        for s in (revision_expected, revision_suggestion)
     )
     revision_block = ""
     if has_revision:
         revision_block = (
-            "## [재계획] 학생의 실행 결과 비교 및 수정 제안 (최우선 반영)\n"
-            "학생이 이전 계획을 햄스터봇으로 직접 실행해본 뒤, 예상과 실제 결과를 비교하고\n"
-            "어떻게 고치면 좋을지 직접 제안했어. 아래 내용을 최우선으로 반영해서 계획을 다시 세워.\n"
-            f"- 학생이 예상한 결과: {revision_expected.strip() or '(미입력)'}\n"
-            f"- 실제 일어난 결과: {revision_actual.strip() or '(미입력)'}\n"
+            "## [재계획] 학생이 계획을 보고 제안한 수정 (최우선 반영)\n"
+            "학생이 위에서 AI가 세운 행동 계획을 직접 살펴본 뒤, 예상되는 문제점과\n"
+            "어떻게 고치면 좋을지를 제안했어. 아래 내용을 최우선으로 반영해서 계획을 다시 세워.\n"
+            f"- 학생이 본 예상되는 문제점: {revision_expected.strip() or '(미입력)'}\n"
             f"- 학생의 수정 제안: {revision_suggestion.strip() or '(미입력)'}\n"
             "단, 햄스터봇이 할 수 있는 행동, 발판(말판) 경계, 장애물 회피 같은 안전 원칙을\n"
             "벗어나지 않는 범위 안에서 제안을 반영해. 제안이 안전 원칙과 충돌하면 가장 가까운\n"
@@ -745,7 +780,7 @@ async def generate_action_plan(
 async def generate_python_code(
     action_plan: dict[str, Any],
     student_choice: int,
-    platform: str = "entry",
+    platform: str = "robomation",   # 엔트리 지원 제거: 항상 로보메이션
     rag_context: str = "",   # 비어있으면 내부에서 RAG 자동 검색
     board_detected: bool = False,
     student_goal: str = "",
@@ -764,31 +799,20 @@ async def generate_python_code(
         4 = 장애물 회피 우선
         5 = 더 효율적으로 (최단경로)
     """
-    if board_detected:
-        safer_instruction = (
-            "[중요] 말판(격자 보드)이 감지되었으므로 반드시 보드 명령어"
-            "(`Hamster.board_forward()`, `Hamster.board_turn()`, `Hamster.move_forward()`)를 "
-            "그대로 사용해야 해. 보드 명령은 블로킹 명령이라 velocity 파라미터가 없으니, "
-            "안전하게 만들기 위해서는 파일 상단의 `SPEED` 상수 값만 20 이하로 낮춰. "
-            "이동 방식 자체를 set_wheels + time.sleep으로 바꾸지 마. "
-            "보드 명령어 사용은 그대로 유지하고 SPEED 상수만 줄여서 천천히 움직이도록 해."
-        )
-        faster_instruction = (
-            "[중요] 말판(격자 보드)이 감지되었으므로 보드 명령어를 그대로 사용해야 해. "
-            "이동 방식을 set_wheels + time.sleep으로 바꾸지 말고, "
-            "보드 명령어(`board_forward`, `board_turn`, `move_forward`)를 유지한 채 "
-            "불필요한 회전과 이동을 줄여서 최단 경로로 최적화해 줘. "
-            "연속된 같은 방향 이동은 `move_forward(N)` 한 번으로 합치는 것을 우선 고려해."
-        )
-    else:
-        safer_instruction = (
-            "모든 이동의 velocity 파라미터를 20 이하로 낮춰서 안전하게 구현해 줘. "
-            "기본 속도(velocity 생략 시 30%)보다 더 느리게 설정해."
-        )
-        faster_instruction = (
-            "불필요한 회전과 이동을 줄여서 최단 경로로 최적화해 줘. "
-            "연속된 같은 방향 이동은 합쳐서 한 번에 처리해."
-        )
+    # 엔트리 지원 제거: 이 서비스는 로보메이션 Block Composer 코드만 생성한다.
+    platform = "robomation"
+
+    # 로보메이션 Block Composer는 말판 유무와 무관하게 거리 이동 블록만 사용한다.
+    safer_instruction = (
+        "이동 방식은 그대로 거리 이동 블록을 유지하고, 모든 `__getSpeed('HamsterS*0', 속도)` 의 "
+        "속도 값만 20 이하로 낮춰서 천천히 안전하게 움직이도록 해. "
+        "회전은 `__turn_degree_left/right` 그대로 사용하고, 이동 방식 자체는 바꾸지 마."
+    )
+    faster_instruction = (
+        "이동 방식은 그대로 거리 이동 블록을 유지한 채, 불필요한 회전과 이동을 줄여서 "
+        "최단 경로로 최적화해 줘. 연속된 같은 방향 전진은 이동 거리(cm)를 합쳐서 "
+        "거리 이동 블록 한 번으로 처리하는 것을 우선 고려해."
+    )
 
     choice_context = {
         1: "원래 계획 그대로 구현해 줘.",
@@ -823,9 +847,11 @@ async def generate_python_code(
     plan_json = json.dumps(action_plan, ensure_ascii=False, indent=2)
 
     board_note = (
-        "말판(격자 보드) 감지: 있음 → `move_forward(n)`, `board_turn()` 사용 가능"
-        if board_detected else
-        "말판(격자 보드) 감지: 없음 → `set_wheels()` + `time.sleep()` 방식 필수 사용"
+        "말판(격자 보드) 감지: "
+        + ("있음" if board_detected else "없음")
+        + " → 말판 유무와 무관하게 이동은 거리 이동 블록"
+        "(`wheel.move`+`__getDistance`+`!move`)과 `__turn_degree_left/right` 로만 생성. "
+        "라인 트레이싱(`wheel.trace.*`)은 절대 사용 금지."
     )
 
     # 1단계 이미지 분석 컨텍스트 (3단계 설명에 사용)
@@ -852,100 +878,49 @@ async def generate_python_code(
             "- 반드시 `import asyncio` 로 시작\n"
             "- 한 번 실행할 이동 코드는 `async def setup():` 함수 안에 작성\n"
             "- `def loop():` 는 반복 실행 코드용 (단순 이동이면 `return` 만)\n"
-            "- 바퀴 속도 설정: `__('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 속도)`\n"
-            "  속도 범위: -100 ~ 100 (양수=전진, 음수=후진)\n"
+            "- **이동(앞/뒤/좌/우)은 말판 유무와 관계없이 무조건 '거리 이동 블록' 만 사용**:\n"
+            "  전진/후진 = `wheel.move` + `__getDistance` + `await __('...wheel.!move').w()`,\n"
+            "  회전 = `await __turn_degree_left/right('HamsterS*0', 각도, True)`\n"
+            "- **라인 트레이싱 / 선 따라가기 / `wheel.trace.speed`·`wheel.trace.gain`·"
+            "`wheel.trace.mode`·`wheel.trace.!mode` 코드는 절대 생성 금지** (한 줄도 쓰지 마)\n"
+            "  말판이 있어도 trace 로 주행하지 말고 거리 이동 블록으로만 표현해.\n"
+            "- 후진은 `__getSpeed` 속도에 음수(-) 부호, 거리는 양수 유지\n"
             "- LED 설정: `__('HamsterS*0:led.left').d = [R, G, B]`\n"
             "- 대기: `await asyncio.sleep(초)` (setup 함수 안에서만)\n"
-            "- 정지: 양쪽 바퀴 속도를 0으로 설정\n\n"
-            "## 코드 형식 예시\n"
+            "- 정지가 필요하면 `__stopMove('HamsterS*0')`\n\n"
+            f"{ROBOMATION_MOVEMENT_REFERENCE}\n"
+            "## 코드 형식 예시 (거리 이동 블록 — 전진 후 왼쪽 90도 회전)\n"
             "import asyncio\n\n"
             "async def setup():\n"
-            "    # 전진 1초\n"
+            "    # 5cm 앞으로 이동\n"
+            "    if __('HamsterS*0:wheel.move').d != 0:\n"
+            "        __('HamsterS*0:wheel.move').d = 0\n"
             "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 50)\n"
             "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 50)\n"
-            "    await asyncio.sleep(1)\n"
-            "    # 정지\n"
-            "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 0)\n"
-            "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 0)\n"
+            "    __('HamsterS*0:wheel.move').d = __getDistance('HamsterS*0', 5, 'cm')\n"
+            "    await __('HamsterS*0:wheel.!move').w()\n"
+            "    await asyncio.sleep(0.5)\n"
+            "    # 제자리에서 왼쪽으로 90도 회전\n"
+            "    await __turn_degree_left('HamsterS*0', 90, True)\n"
             "    return\n\n"
             "def loop():\n"
             "    return\n"
         )
         platform_editor = "로보메이션 랩"
         code_template = (
-            '"import asyncio\\n\\nasync def setup():\\n    # 이동 코드\\n    return\\n\\ndef loop():\\n    return\\n"'
+            '"import asyncio\\n\\nasync def setup():\\n'
+            "    if __('HamsterS*0:wheel.move').d != 0:\\n"
+            "        __('HamsterS*0:wheel.move').d = 0\\n"
+            "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 50)\\n"
+            "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 50)\\n"
+            "    __('HamsterS*0:wheel.move').d = __getDistance('HamsterS*0', 5, 'cm')\\n"
+            "    await __('HamsterS*0:wheel.!move').w()\\n    return\\n\\ndef loop():\\n    return\\n\""
         )
-    else:
-        if board_detected:
-            movement_rules = (
-                "### ✅ 말판(격자 보드) 있음 → 보드 명령어 사용\n"
-                "  Hamster.board_forward()       — 앞으로 1칸 이동 (IR 마커 1개) ★기본★\n"
-                "  Hamster.move_forward(칸수)    — 말판 N칸 전진 (한 번에 N칸)\n"
-                "  Hamster.move_backward(칸수)   — 말판 N칸 후진\n"
-                "  Hamster.board_turn('LEFT')    — 말판 기준 왼쪽 90도 회전\n"
-                "  Hamster.board_turn('RIGHT')   — 말판 기준 오른쪽 90도 회전\n"
-                "  Hamster.turn('LEFT', 횟수)    — 왼쪽으로 N×90도 회전 (2=180도)\n"
-                "  → import time 불필요, 블로킹 명령이라 자동 정지됨\n\n"
-                "## 필수 코드 구조 (말판 모드 표준 템플릿)\n"
-                "  1) `import Entry` + `import Hamster` 두 줄만 (import time 불필요)\n"
-                "  2) 파일 상단에 반드시 `SPEED = 30`, `FWD_10CM = 0.85`, `TURN_90 = 0.55` 상수 3줄 선언\n"
-                "     (보드 명령이 주력이지만 상수는 표준 템플릿이므로 항상 포함)\n"
-                "  3) `def when_start():` 안에서 이동은 **`Hamster.board_forward()` 를 반복 호출하는 것을 최우선 권장**\n"
-                "     (N칸 이동 = board_forward() × N번 호출 — 매 칸 IR 재정렬로 정확도↑)\n"
-                "  4) `move_forward(N)` 사용 가능하나 누적 오차 가능성으로 board_forward 반복이 더 안정적\n"
-                "  5) 회전은 항상 `Hamster.board_turn(\"LEFT\")` / `Hamster.board_turn(\"RIGHT\")`\n"
-            )
-            code_template = (
-                '"import Entry\\nimport Hamster\\n\\n\\nSPEED = 30\\nFWD_10CM = 0.85\\nTURN_90 = 0.55\\n\\ndef when_start():\\n    Hamster.board_forward()\\n    Hamster.board_turn(\\"RIGHT\\")\\n    Hamster.board_forward()\\n    Hamster.board_forward()\\n    Hamster.board_turn(\\"LEFT\\")\\n    Hamster.board_forward()\\n"'
-            )
-        else:
-            movement_rules = (
-                "### ⚠️ 말판(격자 보드) 없음 → set_wheels + time.sleep 방식 필수\n"
-                "  - `import time` 을 반드시 세 번째 줄에 추가\n"
-                "  - board_turn(), move_forward(n) 절대 사용 금지 (말판 없으면 오작동)\n"
-                "  - 이동/회전을 모두 아래 패턴으로 구현:\n\n"
-                "  SPEED = 30          # 속도 (1~100)\n"
-                "  FWD_10CM = 0.85     # 속도30으로 10cm 이동 시간(초)\n"
-                "  TURN_90  = 0.55     # 속도30으로 90도 회전 시간(초)\n\n"
-                "  # 전진 N×10cm:\n"
-                "  Hamster.set_wheels(SPEED, SPEED)\n"
-                "  time.sleep(FWD_10CM * N)\n"
-                "  Hamster.set_wheels(0, 0)\n\n"
-                "  # 왼쪽 90도 회전:\n"
-                "  Hamster.set_wheels(-SPEED, SPEED)\n"
-                "  time.sleep(TURN_90)\n"
-                "  Hamster.set_wheels(0, 0)\n\n"
-                "  # 오른쪽 90도 회전:\n"
-                "  Hamster.set_wheels(SPEED, -SPEED)\n"
-                "  time.sleep(TURN_90)\n"
-                "  Hamster.set_wheels(0, 0)\n"
-            )
-            code_template = (
-                '"import Entry\\nimport Hamster\\nimport time\\n\\nSPEED = 30\\nFWD_10CM = 0.85\\nTURN_90 = 0.55\\n\\ndef when_start():\\n    Hamster.set_wheels(SPEED, SPEED)\\n    time.sleep(FWD_10CM * 2)\\n    Hamster.set_wheels(0, 0)\\n"'
-            )
-
-        platform_rules = (
-            "## 절대 규칙 (반드시 지킬 것 - 엔트리 파이썬 전용)\n"
-            "- 반드시 `import Entry` 와 `import Hamster` 두 줄로 임포트\n"
-            + ("- 말판 없을 때: `import time` 세 번째 줄 추가 필수\n" if not board_detected else "")
-            + "- 모든 코드는 반드시 `def when_start():` 함수 안에 작성\n"
-            "- API 호출은 `Hamster.메서드()` 형태 (인스턴스 생성 금지)\n"
-            "- `try/finally` 구조 금지, `dispose()` 호출 금지\n\n"
-            f"{movement_rules}\n"
-            "## 공통 API (말판 유무 무관)\n"
-            "  Hamster.set_wheels(왼쪽, 오른쪽) — 바퀴 속도 설정 (-100~100)\n"
-            "  Hamster.set_led_green('BOTH')    — 초록 LED\n"
-            "  Hamster.set_led_red('BOTH')      — 빨간 LED\n"
-            "  Hamster.beep()                   — 소리\n"
-        )
-        platform_editor = "엔트리 파이썬 에디터"
 
     rag_header = (
         "## 햄스터-S API 레퍼런스 (RobomationLAB 공식 위키 발췌)\n"
         "출처: https://github.com/RobomationLAB/User_Guide/\n"
         "아래 내용은 유일한 진실 원본이며, 여기에 없는 함수/문법은 절대 사용 금지.\n"
-        if platform == "robomation" else
-        "## 햄스터-S API 레퍼런스 (공식 문서 발췌)\n"
     )
     lang_directive = ""
     if lang == "en":
@@ -1000,13 +975,13 @@ async def generate_python_code(
             "   - Split into 3-5 short paragraphs separated by a BLANK LINE ('\\n\\n').\n"
             "     Each paragraph should be 1-3 sentences so a child can read it easily.\n"
             "   - Do NOT write Python code, function names, or technical terms in the explanation.\n"
-            "     FORBIDDEN: 'board_forward()', 'Hamster.move_forward()', 'wheel.trace.mode', "
-            "'line tracing', 'asyncio', 'await', 'async def setup', variable names, etc.\n"
+            "     FORBIDDEN: 'wheel.move', '__getDistance', '__turn_degree_left', "
+            "'asyncio', 'await', 'async def setup', variable names, etc.\n"
             "     INSTEAD, describe what the command does in everyday words.\n"
-            "       Bad:  'I used the line tracing command wheel.trace.mode = 3 to follow the line.'\n"
-            "       Good: 'I told the hamster to follow the black line on the board so it stays on track.'\n"
-            "       Bad:  'I called board_forward() twice.'\n"
-            "       Good: 'I made it move forward two cells on the board.'\n"
+            "       Bad:  'I set wheel.move with __getDistance to move 10cm.'\n"
+            "       Good: 'I told the hamster to drive forward about 10 centimeters and then stop.'\n"
+            "       Bad:  'I called __turn_degree_left twice.'\n"
+            "       Good: 'I made it spin to the left a quarter turn.'\n"
             if lang == "en" else
             "   ① 1단계 이미지 분석 결과를 반드시 인용하면서 시작해. 예: '목표물인 머리핀이 햄스터봇 기준 왼쪽 위에 있기 때문에, 먼저 왼쪽으로 회전한 다음 전진 명령을 반복하도록 했답니다.'\n"
             "      → 학생의 목표(목표물 이름), 햄스터봇 현재 위치, 장애물 위치(햄스터봇 기준 방향)를 자연스럽게 언급해야 함\n"
@@ -1019,13 +994,13 @@ async def generate_python_code(
             "   - 반드시 3~5개 문단으로 나눠서 작성하고, 문단 사이에는 빈 줄('\\n\\n')을 넣어.\n"
             "     각 문단은 1~3문장으로 짧게 써야 초등학생이 읽기 쉬워.\n"
             "   - 설명 안에는 파이썬 코드, 함수 이름, 기술 용어를 절대 그대로 쓰지 마.\n"
-            "     금지 예시: 'board_forward()', 'Hamster.move_forward()', 'wheel.trace.mode', "
-            "'라인 트레이싱', '게인', 'asyncio', 'await', 'async def setup', 변수 이름 등.\n"
+            "     금지 예시: 'wheel.move', '__getDistance', '__turn_degree_left', "
+            "'asyncio', 'await', 'async def setup', 변수 이름 등.\n"
             "     대신 그 명령이 무엇을 하는지 일상 언어로 풀어서 설명해야 해.\n"
-            "       나쁜 예: '라인 트레이싱 명령(wheel.trace.mode=3)을 사용해서 검은선을 따라가게 했어요.'\n"
-            "       좋은 예: '햄스터봇이 말판 위 검은 선을 따라 길을 잃지 않고 정확하게 움직이도록 했어요.'\n"
-            "       나쁜 예: 'board_forward()를 두 번 호출해서 앞으로 두 칸 갔어요.'\n"
-            "       좋은 예: '말판 위에서 앞으로 두 칸 이동하도록 했어요.'\n"
+            "       나쁜 예: 'wheel.move와 __getDistance로 10cm 이동하게 했어요.'\n"
+            "       좋은 예: '햄스터봇이 앞으로 약 10센티미터를 가고 멈추도록 했어요.'\n"
+            "       나쁜 예: '__turn_degree_left를 두 번 호출했어요.'\n"
+            "       좋은 예: '제자리에서 왼쪽으로 90도씩 두 번 돌도록 했어요.'\n"
         )
         + f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
         "반드시 JSON 형식으로만 대답해. 코드 안의 따옴표는 이스케이프해.\n\n"
@@ -1057,16 +1032,15 @@ async def generate_python_code(
     )
     result = _extract_json(response.text)
 
-    # 플랫폼별 자동 교정
+    # 자동 교정 (로보메이션 Block Composer 전용)
     if "python_code" in result and isinstance(result["python_code"], str):
         code = result["python_code"]
-        if platform == "entry":
-            code = code.replace("from roboid import *", "import Entry\nimport Hamster")
-            code = code.replace("from hamster import *", "import Entry\nimport Hamster")
-            code = code.replace("import HamsterS", "import Hamster")
-            code = code.replace("HamsterS.", "Hamster.")
-            code = code.replace("hamster = HamsterS()", "")
-            code = code.replace("hamster = Hamster()", "")
+        # 안전망: 거리 이동만 허용하므로 라인 트레이싱(trace) 코드가 섞이면 안 됨.
+        if "wheel.trace" in code:
+            logger.warning(
+                "로보메이션 코드에 금지된 라인 트레이싱(wheel.trace) 코드가 포함됨 "
+                "— 프롬프트 규칙 위반. 거리 이동 블록만 생성되어야 함."
+            )
         result["python_code"] = code
 
     return result

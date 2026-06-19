@@ -95,7 +95,7 @@ export function generateCode(
   actionPlan,
   studentChoice,
   userId = "anonymous",
-  platform = "entry",
+  platform = "robomation",
   boardDetected = false,
   studentGoal = "",
   hamsterPosition = "",

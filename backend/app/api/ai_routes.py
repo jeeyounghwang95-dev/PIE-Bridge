@@ -67,7 +67,7 @@ class CodeRequest(BaseModel):
     action_plan: dict[str, Any] = Field(..., description="1-B단계에서 생성된 행동 계획 JSON")
     student_choice: int = Field(..., ge=1, le=5, description="학생이 선택한 옵션 번호 (1~5)")
     user_id: str = Field(default="anonymous")
-    platform: str = Field(default="entry", description="코드 플랫폼: 'entry' 또는 'robomation'")
+    platform: str = Field(default="robomation", description="코드 플랫폼 (로보메이션 Block Composer 전용)")
     board_detected: bool = Field(default=False, description="사진에서 말판(격자 보드) 감지 여부")
     student_goal: str = Field(default="", description="학생이 입력한 원본 목표 텍스트")
     hamster_position: str = Field(default="", description="햄스터봇 위치 설명 (1단계 분석 결과)")
