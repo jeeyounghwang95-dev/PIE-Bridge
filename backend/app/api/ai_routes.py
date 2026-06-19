@@ -132,13 +132,21 @@ async def generate_plan(
     ⚠️  안전 필터: 목표 텍스트에 위험 키워드가 있으면 즉시 차단.
     """
     # ── 안전 필터 검사 ──────────────────────────────────────
-    filter_result = safety_filter.check(req.student_goal)
+    # 학생이 자유롭게 입력할 수 있는 모든 칸을 검사한다:
+    #   목표 입력 + 수정 제안하기(예상 문제점 / 실제 결과 / 수정 제안).
+    candidate_inputs = [
+        req.student_goal,
+        req.revision_expected,
+        req.revision_actual,
+        req.revision_suggestion,
+    ]
+    filter_result = safety_filter.check_many(candidate_inputs, lang=req.lang)
     if filter_result["blocked"]:
-        # 차단 내역을 safety_logs 테이블에 저장
+        # 차단된 입력(들)을 safety_logs 테이블에 저장
         await _log_safety(
             db=db,
             user_id=req.user_id,
-            input_text=req.student_goal,
+            input_text=" | ".join(t for t in candidate_inputs if t),
             reason=filter_result["reason"],
         )
         return SafetyBlockedResponse(
@@ -234,6 +242,25 @@ async def generate_code(
     선택지 3번(다시 계획 생성하기)은 코드를 생성하지 않고
     프론트가 1단계로 돌아가도록 안내 메시지를 반환한다.
     """
+    # ── 방어적 안전 필터 (defense-in-depth) ─────────────────
+    # 코드 생성 경로로 직접 들어오는 자유 입력(목표/계획 텍스트)도 한 번 더 검사한다.
+    code_inputs = [req.student_goal]
+    for s in (req.action_plan or {}).get("steps", []) if isinstance(req.action_plan, dict) else []:
+        if isinstance(s, dict):
+            code_inputs.append(str(s.get("action", "")))
+            code_inputs.append(str(s.get("detail", "")))
+    if isinstance(req.action_plan, dict):
+        code_inputs.append(str(req.action_plan.get("summary", "")))
+    code_filter = safety_filter.check_many(code_inputs, lang=req.lang)
+    if code_filter["blocked"]:
+        await _log_safety(
+            db=db,
+            user_id=req.user_id,
+            input_text=req.student_goal or "(action_plan)",
+            reason=code_filter["reason"],
+        )
+        return SafetyBlockedResponse(message=code_filter["message"]).model_dump()
+
     # 선택지 3(다시 계획)은 더 이상 코드 생성 라우트로 오지 않음.
     # 프론트가 /generate-plan 을 직접 다시 호출해 같은 위치에서 계획만 새로 만든다.
     if req.student_choice == 3:

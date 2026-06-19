@@ -1,0 +1,102 @@
+# backend/app/core/profanity_en.txt
+#
+# English profanity / slur list for PIE BRIDGE safety filter.
+# - One term per line. Text after '#' and blank lines are ignored.
+# - Matched case-insensitively with WORD BOUNDARIES (\b...\b) so that
+#   substrings of innocent words are NOT blocked
+#   (e.g. "ass" will NOT trip on "class", "pass", "assignment").
+# - The filter also normalizes simple leetspeak (@->a, $->s, 0->o,
+#   1->i, 3->e, !->i) and collapses repeated letters before matching,
+#   so "f*ck", "sh1t", "fuuuck" are still caught.
+#
+# Keep base forms; the matcher handles common variants. Update this
+# file to tune coverage (server restart required).
+
+# ── core profanity ─────────────────────────────────────────
+fuck
+fucks
+fucked
+fucker
+fuckers
+fucking
+fuckin
+motherfucker
+motherfuckers
+shit
+shits
+shitty
+bullshit
+bitch
+bitches
+bastard
+bastards
+asshole
+assholes
+dumbass
+jackass
+dickhead
+dick
+dicks
+cock
+cocks
+pussy
+piss
+pissed
+crap
+damn
+goddamn
+prick
+wanker
+twat
+slut
+sluts
+whore
+whores
+cunt
+bollocks
+arse
+arsehole
+
+# ── sexual / explicit ──────────────────────────────────────
+sex
+porn
+porno
+boobs
+penis
+vagina
+horny
+blowjob
+handjob
+cum
+jizz
+masturbate
+nude
+nudes
+
+# ── slurs (hate speech) ────────────────────────────────────
+nigger
+nigga
+faggot
+fag
+retard
+retarded
+spastic
+chink
+gook
+kike
+wetback
+tranny
+dyke
+
+# ── insults often used by/at kids ──────────────────────────
+loser
+idiot
+stupid
+moron
+suck
+sucks
+sucker
+shut up
+screw you
+kill yourself
+kys
