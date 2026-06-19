@@ -66,6 +66,11 @@ ROBOMATION_WIKI_DIRECTIVE = (
     "5. 모든 코드는 RobomationLAB Block Composer 환경에서 즉시 실행 가능해야 한다.\n"
 )
 
+# ── 말판(격자 보드) 한 칸의 실제 거리 (cm) ──────────────────
+# 행동 계획은 말판 모드에서 '칸' 단위로 만들어지고, 코드 생성 단계에서
+# 1칸 = CELL_SIZE_CM 로 환산해 거리 이동 블록의 cm 값을 결정한다.
+CELL_SIZE_CM = 5
+
 # ── 거리 이동 표준 참조 (로보메이션 전용, 무조건 이 블록만 사용) ──
 # 햄스터 S 의 모든 이동(앞/뒤/좌/우)은 말판 유무와 관계없이 아래 거리 이동 블록과
 # __turn_degree_left/right 헬퍼로만 생성해야 한다.
@@ -99,7 +104,9 @@ ROBOMATION_MOVEMENT_REFERENCE = (
     "\n"
     "- 이동 거리(cm)와 회전 각도(도)만 행동 계획에 맞게 바꿔서 위 블록을 반복 배치한다.\n"
     "- 각 동작 사이에는 `await asyncio.sleep(0.5)` 로 간격을 두면 안정적이다.\n"
-    "- 말판이 있을 때 '한 칸'은 적절한 cm(예: 10~12cm)로 환산해서 같은 거리 이동 블록으로 표현한다.\n"
+    f"- 말판이 있을 때 '한 칸'은 정확히 {CELL_SIZE_CM}cm 이다. 계획에 'N칸'이라고 적혀 있으면\n"
+    f"  반드시 (N x {CELL_SIZE_CM})cm 로 환산해서 거리 이동 블록의 cm 값을 정한다.\n"
+    f"  (예: 1칸 -> {CELL_SIZE_CM}cm, 2칸 -> {2 * CELL_SIZE_CM}cm, 3칸 -> {3 * CELL_SIZE_CM}cm)\n"
 )
 
 # ── Gemini 클라이언트 (지연 초기화 - API 키 없이 임포트 가능) ─
@@ -853,6 +860,14 @@ async def generate_python_code(
         "(`wheel.move`+`__getDistance`+`!move`)과 `__turn_degree_left/right` 로만 생성. "
         "라인 트레이싱(`wheel.trace.*`)은 절대 사용 금지."
     )
+    if board_detected:
+        board_note += (
+            f"\n[칸→cm 환산 규칙] 이 말판은 한 칸이 정확히 {CELL_SIZE_CM}cm 이다. "
+            f"행동 계획에 'N칸 이동'이라고 적혀 있으면 거리 이동 블록의 거리를 "
+            f"반드시 (N x {CELL_SIZE_CM})cm 로 설정해라. "
+            f"예: 1칸→{CELL_SIZE_CM}cm, 2칸→{2 * CELL_SIZE_CM}cm, 3칸→{3 * CELL_SIZE_CM}cm. "
+            f"절대 10cm 같은 다른 값으로 임의 환산하지 마라."
+        )
 
     # 1단계 이미지 분석 컨텍스트 (3단계 설명에 사용)
     def _fmt_obs2(item):
