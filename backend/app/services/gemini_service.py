@@ -1,13 +1,14 @@
 # backend/app/services/gemini_service.py
 #
-# PIE BRIDGE - Gemini AI 서비스 (Flash / Pro 하이브리드 라우팅)
+# PIE BRIDGE - Gemini AI 서비스
 #
 # SDK: google-genai (신규 공식 SDK, google-generativeai 대체)
 #
 # ┌─────────────────────────────────────────────────────────────┐
-# │  호출 흐름                                                  │
-# │  1단계  이미지 품질 검사 + 행동 계획 생성  →  Flash 모델   │
-# │  3단계  RAG 기반 파이썬 코드 생성         →  Pro   모델   │
+# │  호출 흐름 (모두 gemini-2.5-flash, 폴백 gemini-2.5-flash-lite) │
+# │  1-A단계  이미지 품질 검사            →  FLASH_MODEL        │
+# │  1-B단계  행동 계획 생성              →  PLAN_MODEL         │
+# │  3단계    RAG 기반 파이썬 코드 생성   →  FLASH_MODEL        │
 # └─────────────────────────────────────────────────────────────┘
 
 import asyncio
@@ -782,7 +783,7 @@ async def generate_action_plan(
 
 
 # ─────────────────────────────────────────────────────────────
-# 3단계: Vibe-Explanation + 파이썬 코드 생성  (Pro + RAG)
+# 3단계: Vibe-Explanation + 파이썬 코드 생성  (Flash + RAG)
 # ─────────────────────────────────────────────────────────────
 async def generate_python_code(
     action_plan: dict[str, Any],

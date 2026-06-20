@@ -15,14 +15,13 @@ class Settings(BaseSettings):
     # ── Gemini API ──────────────────────────────────────────
     GEMINI_API_KEY: str = ""
 
-    # 하이브리드 모델 이름 (변경 시 여기만 수정)
+    # 모델 이름 (변경 시 여기만 수정)
     FLASH_MODEL: str = "gemini-2.5-flash"
-    PRO_MODEL: str = "gemini-2.5-pro"
 
     # ── Anthropic API (1-B 행동 계획 생성용) ────────────────
     ANTHROPIC_API_KEY: str = ""
-    # PLAN_MODEL: 1-B 행동 계획 생성용 (이미지 추론이 가장 어려운 단계 → Pro)
-    PLAN_MODEL: str = "gemini-2.5-pro"
+    # PLAN_MODEL: 1-B 행동 계획 생성용
+    PLAN_MODEL: str = "gemini-2.5-flash"
 
     # ── PostgreSQL (Supabase) ───────────────────────────────
     # 형식: postgresql+asyncpg://user:password@host:5432/dbname

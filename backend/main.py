@@ -179,8 +179,7 @@ app = FastAPI(
     title="PIE BRIDGE API",
     description=(
         "초등학생 블록코딩 → 파이썬 전환 지원 AI 플랫폼\n\n"
-        "- Flash 모델: 이미지 분석, 행동 계획\n"
-        "- Pro 모델: RAG 기반 파이썬 코드 생성\n"
+        "- Flash 모델: 이미지 분석, 행동 계획, RAG 기반 파이썬 코드 생성\n"
         "- Safety Filter: 위험 키워드 차단\n"
         "- SQLite: 학생 행동 로그"
     ),
