@@ -111,8 +111,8 @@ await __('HamsterS*0:wheel.!move').w()
 | `__getDistance(디바이스, 값, 단위)` | 거리 값을 내부값으로 변환 ('cm', 'mm' 등) |
 | `__stopMove(디바이스)` | 이동 즉시 정지 |
 | `__stopAfterDelay(디바이스, 초, True)` | n초 후 정지 (await 필요) |
-| `__turn_degree_left(디바이스, 각도, True)` | 제자리 왼쪽 회전 (await 필요) |
-| `__turn_degree_right(디바이스, 각도, True)` | 제자리 오른쪽 회전 (await 필요) |
+| `__turnDegreeLeft(디바이스, 각도, True)` | 제자리 왼쪽 회전 (await 필요) |
+| `__turnDegreeRight(디바이스, 각도, True)` | 제자리 오른쪽 회전 (await 필요) |
 | `__keypressed(키코드)` | 키보드 입력 감지 (38=↑, 40=↓, 37=←, 39=→, 32=space) |
 | `__scope(이름, 최소, 최대, 색상, 값)` | 스코프 그래프에 값 출력 |
 """,
@@ -195,13 +195,13 @@ __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 0)
 가장 정확하고 간단한 방법. 지정 각도만큼 정확히 회전한 후 자동 정지.
 ```python
 # 왼쪽 90도 회전 (제자리)
-await __turn_degree_left('HamsterS*0', 90, True)
+await __turnDegreeLeft('HamsterS*0', 90, True)
 
 # 오른쪽 90도 회전 (제자리)
-await __turn_degree_right('HamsterS*0', 90, True)
+await __turnDegreeRight('HamsterS*0', 90, True)
 
 # 180도 유턴 (왼쪽 기준)
-await __turn_degree_left('HamsterS*0', 180, True)
+await __turnDegreeLeft('HamsterS*0', 180, True)
 ```
 - 마지막 인자 `True` : 회전 완료까지 대기 (await 필수)
 - 각도 범위: 0 ~ 360
@@ -237,7 +237,7 @@ async def setup():
 ```
 
 ## 언제 무엇을 쓸까?
-- **정확한 각도가 중요** → `__turn_degree_left/right` (권장)
+- **정확한 각도가 중요** → `__turnDegreeLeft/Right` (권장)
 - **부드러운 커브, 연속 주행** → 바퀴 차동 속도
 - **키보드 제어(리모컨)** → 바퀴 차동 속도
 """,
@@ -320,7 +320,7 @@ async def loop():
   (말판이 있다고 해서 다른 이동 방식으로 바꾸지 않는다.)
 - **라인 트레이싱 / 선 따라가기 / `wheel.trace.*` (trace.speed, trace.gain, trace.mode,
   `wheel.trace.!mode`) 코드는 절대 생성 금지.** 이동은 무조건 거리 이동 블록으로만 표현한다.
-- 전진/후진은 아래 "거리 이동 블록", 좌회전/우회전은 `__turn_degree_left/right` 헬퍼만 사용한다.
+- 전진/후진은 아래 "거리 이동 블록", 좌회전/우회전은 `__turnDegreeLeft/Right` 헬퍼만 사용한다.
 
 ## 핵심: `wheel.move` 속성 + `!move` 이벤트 대기
 지정 거리만큼 이동한 후 자동 정지하는 방식. 속도 + 거리 + 완료 대기의 3단 구조.
@@ -350,9 +350,9 @@ await __('HamsterS*0:wheel.!move').w()
 ## 왼쪽 / 오른쪽 회전 — 제자리 각도 회전 헬퍼
 ```python
 # 제자리에서 왼쪽으로 90도 회전
-await __turn_degree_left('HamsterS*0', 90, True)
+await __turnDegreeLeft('HamsterS*0', 90, True)
 # 제자리에서 오른쪽으로 90도 회전
-await __turn_degree_right('HamsterS*0', 90, True)
+await __turnDegreeRight('HamsterS*0', 90, True)
 ```
 
 ## 완전 예시: 전진 5cm → 왼쪽 90도 → 오른쪽 90도 → 후진 5cm
@@ -370,10 +370,10 @@ async def setup():
     await __('HamsterS*0:wheel.!move').w()
     await asyncio.sleep(0.5)
     # 제자리에서 왼쪽으로 90도 회전
-    await __turn_degree_left('HamsterS*0', 90, True)
+    await __turnDegreeLeft('HamsterS*0', 90, True)
     await asyncio.sleep(0.5)
     # 제자리에서 오른쪽으로 90도 회전
-    await __turn_degree_right('HamsterS*0', 90, True)
+    await __turnDegreeRight('HamsterS*0', 90, True)
     await asyncio.sleep(0.5)
     # 바퀴 속력 50으로 뒤로 5cm 뒤로 이동
     if __('HamsterS*0:wheel.move').d != 0:
@@ -802,7 +802,7 @@ async def setup():
         await asyncio.sleep(0.3)
 
         # 오른쪽 90도 회전
-        await __turn_degree_right('HamsterS*0', 90, True)
+        await __turnDegreeRight('HamsterS*0', 90, True)
         await asyncio.sleep(0.3)
     __stopMove('HamsterS*0')
     return
@@ -835,7 +835,7 @@ async def loop():
         await asyncio.sleep(0.5)
         __stopMove('HamsterS*0')
         # 오른쪽으로 90도 회전 후 다시 전진
-        await __turn_degree_right('HamsterS*0', 90, True)
+        await __turnDegreeRight('HamsterS*0', 90, True)
         __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 30)
         __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 30)
         # LED 초록 (정상 주행)
@@ -902,7 +902,7 @@ async def setup():
         await __('HamsterS*0:wheel.!move').w()
         await asyncio.sleep(0.3)
         # 오른쪽 90도 회전
-        await __turn_degree_right('HamsterS*0', 90, True)
+        await __turnDegreeRight('HamsterS*0', 90, True)
         await asyncio.sleep(0.3)
     __stopMove('HamsterS*0')
     # 도착 신호: 초록 LED + 짧은 경고음
@@ -925,7 +925,7 @@ async def loop():
 5. ❌ 거리 이동 후 `!move.w()` 대기 안 함 → ✅ `await __('...wheel.!move').w()`
 6. ❌ 속도에 단위(%, cm) 포함 → ✅ 숫자만 (-100~100)
 7. ❌ 마지막에 `dispose()` 호출 → ✅ Block Composer는 필요 없음
-8. ❌ 라인 트레이싱 / `wheel.trace.*` (trace.speed/gain/mode) 로 이동 → ✅ 이동은 무조건 거리 이동 블록(`wheel.move`+`__getDistance`+`!move`)과 `__turn_degree_left/right` 만 사용 (말판 유무 무관)
+8. ❌ 라인 트레이싱 / `wheel.trace.*` (trace.speed/gain/mode) 로 이동 → ✅ 이동은 무조건 거리 이동 블록(`wheel.move`+`__getDistance`+`!move`)과 `__turnDegreeLeft/Right` 만 사용 (말판 유무 무관)
 """,
     },
 ]
@@ -1139,8 +1139,8 @@ async def setup():
     await __stopAfterDelay('HamsterS*0', 5, True)
 
     # [제자리 회전 — 각도 지정]
-    await __turn_degree_left('HamsterS*0', 90, True)
-    await __turn_degree_right('HamsterS*0', 90, True)
+    await __turnDegreeLeft('HamsterS*0', 90, True)
+    await __turnDegreeRight('HamsterS*0', 90, True)
 
     # [LED — [R, G, B], 각 0~255]
     __('HamsterS*0:led.left').d  = [255, 0, 0]    # 왼쪽 LED 빨강

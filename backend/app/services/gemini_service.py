@@ -74,7 +74,7 @@ CELL_SIZE_CM = 5
 
 # ── 거리 이동 표준 참조 (로보메이션 전용, 무조건 이 블록만 사용) ──
 # 햄스터 S 의 모든 이동(앞/뒤/좌/우)은 말판 유무와 관계없이 아래 거리 이동 블록과
-# __turn_degree_left/right 헬퍼로만 생성해야 한다.
+# __turnDegreeLeft/Right 헬퍼로만 생성해야 한다.
 # 라인 트레이싱(wheel.trace.*)은 절대 사용 금지.
 ROBOMATION_MOVEMENT_REFERENCE = (
     "## 거리 이동 표준 참조 (이동은 무조건 이 블록만 사용)\n"
@@ -100,8 +100,8 @@ ROBOMATION_MOVEMENT_REFERENCE = (
     "    await __('HamsterS*0:wheel.!move').w()\n"
     "\n"
     "### 왼쪽 / 오른쪽 회전 (제자리 각도 회전 헬퍼)\n"
-    "    await __turn_degree_left('HamsterS*0', 90, True)\n"
-    "    await __turn_degree_right('HamsterS*0', 90, True)\n"
+    "    await __turnDegreeLeft('HamsterS*0', 90, True)\n"
+    "    await __turnDegreeRight('HamsterS*0', 90, True)\n"
     "\n"
     "- 이동 거리(cm)와 회전 각도(도)만 행동 계획에 맞게 바꿔서 위 블록을 반복 배치한다.\n"
     "- 각 동작 사이에는 `await asyncio.sleep(0.5)` 로 간격을 두면 안정적이다.\n"
@@ -791,9 +791,15 @@ def _normalize_robomation_code(code: str) -> str:
     - 탭/스페이스 혼용 → 스페이스 4칸으로 통일 (IndentationError 방지)
     - setup()/loop() 를 항상 ``async def`` 로 강제 (일반 ``def`` 면 TypeError)
     - 본문이 ``return`` 뿐인 ``loop()`` → ``pass`` 로 교정
+    - 회전 헬퍼 snake_case → 실제 camelCase 이름으로 교정 (NameError 방지)
     """
     # 1) 탭을 스페이스 4칸으로 펼쳐 혼용을 제거 (탭 정지 기준 변환)
     code = code.expandtabs(4)
+
+    # 1.5) 회전 헬퍼 이름 교정: Block Composer 의 실제 함수는 camelCase 이다.
+    #      (__turn_degree_left → __turnDegreeLeft 등, 아니면 NameError 발생)
+    code = code.replace("__turn_degree_left", "__turnDegreeLeft")
+    code = code.replace("__turn_degree_right", "__turnDegreeRight")
 
     # 2) setup/loop 를 async def 로 강제. 이미 'async def' 인 줄은
     #    선두 공백 다음이 'async' 라 'def' 패턴에 걸리지 않아 그대로 둔다.
@@ -844,7 +850,7 @@ async def generate_python_code(
     safer_instruction = (
         "이동 방식은 그대로 거리 이동 블록을 유지하고, 모든 `__getSpeed('HamsterS*0', 속도)` 의 "
         "속도 값만 20 이하로 낮춰서 천천히 안전하게 움직이도록 해. "
-        "회전은 `__turn_degree_left/right` 그대로 사용하고, 이동 방식 자체는 바꾸지 마."
+        "회전은 `__turnDegreeLeft/Right` 그대로 사용하고, 이동 방식 자체는 바꾸지 마."
     )
     faster_instruction = (
         "이동 방식은 그대로 거리 이동 블록을 유지한 채, 불필요한 회전과 이동을 줄여서 "
@@ -888,7 +894,7 @@ async def generate_python_code(
         "말판(격자 보드) 감지: "
         + ("있음" if board_detected else "없음")
         + " → 말판 유무와 무관하게 이동은 거리 이동 블록"
-        "(`wheel.move`+`__getDistance`+`!move`)과 `__turn_degree_left/right` 로만 생성. "
+        "(`wheel.move`+`__getDistance`+`!move`)과 `__turnDegreeLeft/Right` 로만 생성. "
         "라인 트레이싱(`wheel.trace.*`)은 절대 사용 금지."
     )
     if board_detected:
@@ -931,7 +937,7 @@ async def generate_python_code(
             "- `async def loop():` 는 반복 실행 코드용. 실행할 코드가 없으면 `return` 대신 `pass` 만 작성\n"
             "- **이동(앞/뒤/좌/우)은 말판 유무와 관계없이 무조건 '거리 이동 블록' 만 사용**:\n"
             "  전진/후진 = `wheel.move` + `__getDistance` + `await __('...wheel.!move').w()`,\n"
-            "  회전 = `await __turn_degree_left/right('HamsterS*0', 각도, True)`\n"
+            "  회전 = `await __turnDegreeLeft/Right('HamsterS*0', 각도, True)`\n"
             "- **라인 트레이싱 / 선 따라가기 / `wheel.trace.speed`·`wheel.trace.gain`·"
             "`wheel.trace.mode`·`wheel.trace.!mode` 코드는 절대 생성 금지** (한 줄도 쓰지 마)\n"
             "  말판이 있어도 trace 로 주행하지 말고 거리 이동 블록으로만 표현해.\n"
@@ -952,7 +958,7 @@ async def generate_python_code(
             "    await __('HamsterS*0:wheel.!move').w()\n"
             "    await asyncio.sleep(0.5)\n"
             "    # 제자리에서 왼쪽으로 90도 회전\n"
-            "    await __turn_degree_left('HamsterS*0', 90, True)\n\n"
+            "    await __turnDegreeLeft('HamsterS*0', 90, True)\n\n"
             "async def loop():\n"
             "    pass\n"
         )
@@ -1053,12 +1059,12 @@ async def generate_python_code(
             "   - Split into 3-5 short paragraphs separated by a BLANK LINE ('\\n\\n').\n"
             "     Each paragraph should be 1-3 sentences so a child can read it easily.\n"
             "   - Do NOT write Python code, function names, or technical terms in the explanation.\n"
-            "     FORBIDDEN: 'wheel.move', '__getDistance', '__turn_degree_left', "
+            "     FORBIDDEN: 'wheel.move', '__getDistance', '__turnDegreeLeft', "
             "'asyncio', 'await', 'async def setup', variable names, etc.\n"
             "     INSTEAD, describe what the command does in everyday words.\n"
             "       Bad:  'I set wheel.move with __getDistance to move 10cm.'\n"
             "       Good: 'I told the hamster to drive forward about 10 centimeters and then stop.'\n"
-            "       Bad:  'I called __turn_degree_left twice.'\n"
+            "       Bad:  'I called __turnDegreeLeft twice.'\n"
             "       Good: 'I made it spin to the left a quarter turn.'\n"
             if lang == "en" else
             "   ① 1단계 이미지 분석 결과를 반드시 인용하면서 시작해. 예: '목표물인 머리핀이 햄스터봇 기준 왼쪽 위에 있기 때문에, 먼저 왼쪽으로 회전한 다음 전진 명령을 반복하도록 했답니다.'\n"
@@ -1072,12 +1078,12 @@ async def generate_python_code(
             "   - 반드시 3~5개 문단으로 나눠서 작성하고, 문단 사이에는 빈 줄('\\n\\n')을 넣어.\n"
             "     각 문단은 1~3문장으로 짧게 써야 초등학생이 읽기 쉬워.\n"
             "   - 설명 안에는 파이썬 코드, 함수 이름, 기술 용어를 절대 그대로 쓰지 마.\n"
-            "     금지 예시: 'wheel.move', '__getDistance', '__turn_degree_left', "
+            "     금지 예시: 'wheel.move', '__getDistance', '__turnDegreeLeft', "
             "'asyncio', 'await', 'async def setup', 변수 이름 등.\n"
             "     대신 그 명령이 무엇을 하는지 일상 언어로 풀어서 설명해야 해.\n"
             "       나쁜 예: 'wheel.move와 __getDistance로 10cm 이동하게 했어요.'\n"
             "       좋은 예: '햄스터봇이 앞으로 약 10센티미터를 가고 멈추도록 했어요.'\n"
-            "       나쁜 예: '__turn_degree_left를 두 번 호출했어요.'\n"
+            "       나쁜 예: '__turnDegreeLeft를 두 번 호출했어요.'\n"
             "       좋은 예: '제자리에서 왼쪽으로 90도씩 두 번 돌도록 했어요.'\n"
         )
         + f"5. python_code: 바로 복사해서 {platform_editor}에 붙여넣을 수 있는 완전한 코드 ({code_comment_lang_note})\n\n"
