@@ -68,10 +68,10 @@ import asyncio
 # put setup code here, to run once:
 async def setup():
     # 한 번 실행할 동작을 여기에 작성
-    return
+    pass
 
 # put control code here, to run repeatedly:
-def loop():
+async def loop():
     # 반복 실행 코드 (사용 안 하면 pass)
     pass
 ```
@@ -80,9 +80,10 @@ def loop():
 - 반드시 `import asyncio` 로 시작 (다른 import는 불필요)
 - **`from roboid import *` 사용 금지**, **`import Hamster` 사용 금지**
 - **`HamsterS()` 인스턴스 생성 금지** — `__('HamsterS*0:...')` 메타 접근자로 직접 제어
+- **들여쓰기는 반드시 스페이스 4칸으로 통일** (탭과 스페이스 혼용 금지 — IndentationError 방지)
 - 한 번 실행할 이동/동작 코드는 **반드시 `async def setup():`** 안에 작성
-- 반복 실행 코드는 `def loop():` 또는 `async def loop():` 안에 작성
-- 반복 실행 내에서 키 입력 등 비동기 처리가 필요하면 `async def loop():`
+- **`setup()` 과 `loop()` 는 반드시 `async def` 로 선언** (일반 `def` 면 TypeError 로 중단됨)
+- 반복 실행 코드는 `async def loop():` 안에 작성. 실행할 코드가 없으면 `return` 대신 `pass`
 - 대기는 **`await asyncio.sleep(초)`** — `setup()` 또는 `async def loop()` 안에서만 사용
 - `try/finally` 구조 사용 금지, `dispose()` 호출 금지
 
@@ -164,7 +165,7 @@ async def setup():
     __stopMove('HamsterS*0')
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -292,7 +293,7 @@ async def setup():
         await asyncio.sleep(0.2)
     return
 
-def loop():
+async def loop():
     # 스코프에 현재 바퀴 속도 실시간 표시
     __scope('바퀴속도', 0, 100, '#ff0000',
             __getSpeedInput('HamsterS*0', __('HamsterS*0:wheel.speed.left').d))
@@ -384,7 +385,7 @@ async def setup():
     await asyncio.sleep(0.5)
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -438,7 +439,7 @@ async def setup():
     await __stopAfterDelay('HamsterS*0', 5, True)
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -567,7 +568,7 @@ async def setup():
     __('HamsterS*0:led.right').d = [0, 0, 0]
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -646,7 +647,7 @@ async def setup():
         await asyncio.sleep(0.1)
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -706,7 +707,7 @@ async def setup():
     __('HamsterS*0:sound.buzz').d = 0
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -738,7 +739,7 @@ async def setup():
     # 별도 초기화 불필요
     return
 
-def loop():
+async def loop():
     # 스코프에 센서값 실시간 출력 (디버깅용)
     __scope('근접 센서', 0, 255, '#ff0000', __('HamsterS*0:proximity.left').d)
     __scope('근접 센서', 0, 255, '#00cc00', __('HamsterS*0:proximity.right').d)
@@ -761,7 +762,7 @@ async def setup():
     __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 30)
     return
 
-def loop():
+async def loop():
     # 양쪽 근접 센서 중 하나라도 장애물 감지 → 정지
     if __('HamsterS*0:proximity.left').d > 50 or __('HamsterS*0:proximity.right').d > 50:
         __stopMove('HamsterS*0')
@@ -806,7 +807,7 @@ async def setup():
     __stopMove('HamsterS*0')
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -882,7 +883,7 @@ async def setup():
     __('HamsterS*0:led.right').d = [0, 0, 0]
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -912,7 +913,7 @@ async def setup():
     __('HamsterS*0:sound.buzz').d = 0
     return
 
-def loop():
+async def loop():
     pass
 ```
 
@@ -1152,7 +1153,7 @@ async def setup():
     return
 
 # put control code here, to run repeatedly:
-def loop():
+async def loop():
     # [센서 읽기]
     left_prox  = __('HamsterS*0:proximity.left').d     # 왼쪽 근접 (0~255)
     right_prox = __('HamsterS*0:proximity.right').d    # 오른쪽 근접 (0~255)

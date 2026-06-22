@@ -783,6 +783,36 @@ async def generate_action_plan(
 
 
 # ─────────────────────────────────────────────────────────────
+# 헬퍼: 생성된 로보메이션 코드의 흔한 실행 오류를 결정적으로 교정
+# ─────────────────────────────────────────────────────────────
+def _normalize_robomation_code(code: str) -> str:
+    """LLM이 생성한 Block Composer 코드의 실행 오류를 규칙적으로 보정한다.
+
+    - 탭/스페이스 혼용 → 스페이스 4칸으로 통일 (IndentationError 방지)
+    - setup()/loop() 를 항상 ``async def`` 로 강제 (일반 ``def`` 면 TypeError)
+    - 본문이 ``return`` 뿐인 ``loop()`` → ``pass`` 로 교정
+    """
+    # 1) 탭을 스페이스 4칸으로 펼쳐 혼용을 제거 (탭 정지 기준 변환)
+    code = code.expandtabs(4)
+
+    # 2) setup/loop 를 async def 로 강제. 이미 'async def' 인 줄은
+    #    선두 공백 다음이 'async' 라 'def' 패턴에 걸리지 않아 그대로 둔다.
+    code = re.sub(
+        r"(?m)^([ \t]*)def (setup|loop)(\s*\()",
+        r"\1async def \2\3",
+        code,
+    )
+
+    # 3) loop 본문이 (주석 제외) return 한 줄뿐이면 pass 로 바꾼다.
+    code = re.sub(
+        r"(?m)^([ \t]*)async def loop\(\s*\):([ \t]*(?:#[^\n]*)?\n(?:[ \t]*#[^\n]*\n)*)([ \t]+)return\b[^\n]*",
+        r"\1async def loop():\2\3pass",
+        code,
+    )
+    return code
+
+
+# ─────────────────────────────────────────────────────────────
 # 3단계: Vibe-Explanation + 파이썬 코드 생성  (Flash + RAG)
 # ─────────────────────────────────────────────────────────────
 async def generate_python_code(
@@ -892,8 +922,13 @@ async def generate_python_code(
             f"{ROBOMATION_WIKI_DIRECTIVE}\n"
             "## 절대 규칙 (반드시 지킬 것 - 로보메이션 랩 전용)\n"
             "- 반드시 `import asyncio` 로 시작\n"
+            "- **들여쓰기는 반드시 스페이스 4칸으로 통일**. 탭(Tab)과 스페이스를 절대 혼용하지 마.\n"
+            "  (혼용하면 IndentationError 가 발생해 코드가 실행되지 않는다)\n"
             "- 한 번 실행할 이동 코드는 `async def setup():` 함수 안에 작성\n"
-            "- `def loop():` 는 반복 실행 코드용 (단순 이동이면 `return` 만)\n"
+            "- **`setup()` 과 `loop()` 는 반드시 `async def` 로 선언**해야 한다.\n"
+            "  일반 `def` 로 선언하면 TypeError 가 발생해 프로그램이 중단된다.\n"
+            "  (올바른 예: `async def setup():`, `async def loop():`)\n"
+            "- `async def loop():` 는 반복 실행 코드용. 실행할 코드가 없으면 `return` 대신 `pass` 만 작성\n"
             "- **이동(앞/뒤/좌/우)은 말판 유무와 관계없이 무조건 '거리 이동 블록' 만 사용**:\n"
             "  전진/후진 = `wheel.move` + `__getDistance` + `await __('...wheel.!move').w()`,\n"
             "  회전 = `await __turn_degree_left/right('HamsterS*0', 각도, True)`\n"
@@ -917,10 +952,9 @@ async def generate_python_code(
             "    await __('HamsterS*0:wheel.!move').w()\n"
             "    await asyncio.sleep(0.5)\n"
             "    # 제자리에서 왼쪽으로 90도 회전\n"
-            "    await __turn_degree_left('HamsterS*0', 90, True)\n"
-            "    return\n\n"
-            "def loop():\n"
-            "    return\n"
+            "    await __turn_degree_left('HamsterS*0', 90, True)\n\n"
+            "async def loop():\n"
+            "    pass\n"
         )
         platform_editor = "로보메이션 랩"
         code_template = (
@@ -930,7 +964,7 @@ async def generate_python_code(
             "    __('HamsterS*0:wheel.speed.left').d = __getSpeed('HamsterS*0', 50)\\n"
             "    __('HamsterS*0:wheel.speed.right').d = __getSpeed('HamsterS*0', 50)\\n"
             "    __('HamsterS*0:wheel.move').d = __getDistance('HamsterS*0', 5, 'cm')\\n"
-            "    await __('HamsterS*0:wheel.!move').w()\\n    return\\n\\ndef loop():\\n    return\\n\""
+            "    await __('HamsterS*0:wheel.!move').w()\\n\\nasync def loop():\\n    pass\\n\""
         )
 
     rag_header = (
@@ -1085,6 +1119,10 @@ async def generate_python_code(
                 "로보메이션 코드에 금지된 라인 트레이싱(wheel.trace) 코드가 포함됨 "
                 "— 프롬프트 규칙 위반. 거리 이동 블록만 생성되어야 함."
             )
-        result["python_code"] = code
+        # 결정적 교정: 들여쓰기 통일 + setup/loop async 강제 + 빈 loop pass.
+        normalized = _normalize_robomation_code(code)
+        if normalized != code:
+            logger.info("생성 코드 자동 교정 적용 (들여쓰기/async def/loop pass)")
+        result["python_code"] = normalized
 
     return result
