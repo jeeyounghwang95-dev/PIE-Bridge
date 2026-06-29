@@ -72,6 +72,13 @@ ROBOMATION_WIKI_DIRECTIVE = (
 # 1칸 = CELL_SIZE_CM 로 환산해 거리 이동 블록의 cm 값을 결정한다.
 CELL_SIZE_CM = 5
 
+# ── 수정 의견 미세 조정 단위 (cm) ──────────────────────────
+# 말판 모드에서 이동은 보통 한 칸(=CELL_SIZE_CM) 단위로 움직이지만,
+# '수정 의견 제안하기' 에서 학생이 '조금 더/덜 이동' 같은 미세 조정을
+# 요청하면 5cm 단위에 고정하지 않고 ±FINE_ADJUST_CM 만큼만 조정한다.
+# (예: 1칸=5cm → 조금 더: 5+2=7cm, 조금 덜: 5-2=3cm)
+FINE_ADJUST_CM = 2
+
 # ── 거리 이동 표준 참조 (로보메이션 전용, 무조건 이 블록만 사용) ──
 # 햄스터 S 의 모든 이동(앞/뒤/좌/우)은 말판 유무와 관계없이 아래 거리 이동 블록과
 # __turnDegreeLeft/Right 헬퍼로만 생성해야 한다.
@@ -125,60 +132,6 @@ def _get_client() -> genai.Client:
             )
         _client = genai.Client(api_key=settings.GEMINI_API_KEY)
     return _client
-
-
-# ── Anthropic 클라이언트 (지연 초기화) ───────────────────────
-_anthropic_client = None
-
-
-def _get_anthropic_client():
-    global _anthropic_client
-    if _anthropic_client is None:
-        try:
-            import anthropic as _anthropic_sdk
-        except ImportError:
-            raise ImportError(
-                "anthropic 패키지가 없어요. "
-                "pip install anthropic 을 실행해 주세요."
-            )
-        if not settings.ANTHROPIC_API_KEY:
-            raise ValueError(
-                "ANTHROPIC_API_KEY가 설정되지 않았어요. "
-                "backend/.env 파일에 ANTHROPIC_API_KEY=... 를 추가해 주세요."
-            )
-        _anthropic_client = _anthropic_sdk.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    return _anthropic_client
-
-
-def _is_claude_model(model: str) -> bool:
-    return model.startswith("claude-")
-
-
-async def _generate_plan_claude(prompt: str, lang: str = "ko") -> str:
-    """Claude 모델로 1-B 행동 계획을 생성한다. 순수 텍스트를 반환."""
-    client = _get_anthropic_client()
-    system_msg = _persona(lang)
-    try:
-        msg = await client.messages.create(
-            model=settings.PLAN_MODEL,
-            max_tokens=4096,
-            system=system_msg,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text
-    except Exception as e:
-        err = str(e)
-        if "529" in err or "overloaded" in err.lower():
-            logger.warning(f"Claude {settings.PLAN_MODEL} 과부하 → 3초 후 재시도")
-            await asyncio.sleep(3)
-            msg = await client.messages.create(
-                model=settings.PLAN_MODEL,
-                max_tokens=4096,
-                system=system_msg,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return msg.content[0].text
-        raise
 
 
 # ── 단계별 GenerateContentConfig ─────────────────────────────
@@ -624,12 +577,31 @@ async def generate_action_plan(
     )
     revision_block = ""
     if has_revision:
+        # 말판 모드 한정: '조금 더/덜 이동' 같은 미세 거리 조정 제안은
+        # 5cm(한 칸) 단위에 고정하지 말고 ±FINE_ADJUST_CM 만큼만 조정한다.
+        fine_adjust_rule = ""
+        if board_detected:
+            fine_adjust_rule = (
+                "### 미세 거리 조정 (조금 더/덜 이동) — 말판 모드 예외 규칙\n"
+                f"말판 모드에서는 보통 거리를 '칸' 단위(한 칸 = {CELL_SIZE_CM}cm)로만 표현하지만,\n"
+                "학생의 수정 제안이 '조금 더 이동' / '조금 덜 이동' / '아주 조금만 더 가게' 처럼\n"
+                f"한 칸보다 작은 미세 거리 조정이면, {CELL_SIZE_CM}cm 단위에 고정하지 말고\n"
+                f"해당 이동 단계에만 ±{FINE_ADJUST_CM}cm 만큼만 조정해서 거리를 'cm'로 표현해.\n"
+                f"  - '조금 더' → 기준 거리 + {FINE_ADJUST_CM}cm "
+                f"(예: 1칸 {CELL_SIZE_CM}cm → {CELL_SIZE_CM + FINE_ADJUST_CM}cm)\n"
+                f"  - '조금 덜' → 기준 거리 - {FINE_ADJUST_CM}cm "
+                f"(예: 1칸 {CELL_SIZE_CM}cm → {CELL_SIZE_CM - FINE_ADJUST_CM}cm)\n"
+                f"이 미세 조정 단계에 한해서만 '거리는 칸 단위로만, cm 금지' 규칙의 예외를 허용하고\n"
+                "action 을 '앞으로 7cm 이동' 처럼 cm 로 적어. 다른 단계는 평소처럼 '칸' 단위를 유지해.\n"
+            )
+
         revision_block = (
             "## [재계획] 학생이 계획을 보고 제안한 수정 (최우선 반영)\n"
             "학생이 위에서 AI가 세운 행동 계획을 직접 살펴본 뒤, 예상되는 문제점과\n"
             "어떻게 고치면 좋을지를 제안했어. 아래 내용을 최우선으로 반영해서 계획을 다시 세워.\n"
             f"- 학생이 본 예상되는 문제점: {revision_expected.strip() or '(미입력)'}\n"
             f"- 학생의 수정 제안: {revision_suggestion.strip() or '(미입력)'}\n"
+            f"{fine_adjust_rule}"
             "단, 햄스터봇이 할 수 있는 행동, 발판(말판) 경계, 장애물 회피 같은 안전 원칙을\n"
             "벗어나지 않는 범위 안에서 제안을 반영해. 제안이 안전 원칙과 충돌하면 가장 가까운\n"
             "안전한 방식으로 바꿔서 반영하고 그 이유를 설명해.\n"
@@ -715,16 +687,13 @@ async def generate_action_plan(
 
     image = _image_part_inline(base64_image)
 
-    if _is_claude_model(settings.PLAN_MODEL):
-        raw_text = await _generate_plan_claude(prompt, lang=lang)
-    else:
-        response = await _generate(
-            model=settings.PLAN_MODEL,
-            fallback=_FLASH_FALLBACK,
-            contents=[image, prompt],
-            config=_plan_config(lang),
-        )
-        raw_text = response.text
+    response = await _generate(
+        model=settings.PLAN_MODEL,
+        fallback=_FLASH_FALLBACK,
+        contents=[image, prompt],
+        config=_plan_config(lang),
+    )
+    raw_text = response.text
 
     result = _extract_json(raw_text)
 
@@ -760,16 +729,13 @@ async def generate_action_plan(
             '  "summary": "전체 요약"\n'
             "}"
         )
-        if _is_claude_model(settings.PLAN_MODEL):
-            retry_raw = await _generate_plan_claude(retry_prompt, lang=lang)
-        else:
-            retry_response = await _generate(
-                model=settings.PLAN_MODEL,
-                fallback=_FLASH_FALLBACK,
-                contents=[image, retry_prompt],
-                config=_plan_config(lang),
-            )
-            retry_raw = retry_response.text
+        retry_response = await _generate(
+            model=settings.PLAN_MODEL,
+            fallback=_FLASH_FALLBACK,
+            contents=[image, retry_prompt],
+            config=_plan_config(lang),
+        )
+        retry_raw = retry_response.text
         result = _extract_json(retry_raw)
 
     if not isinstance(result.get("steps"), list) or len(result["steps"]) == 0:
@@ -903,7 +869,11 @@ async def generate_python_code(
             f"행동 계획에 'N칸 이동'이라고 적혀 있으면 거리 이동 블록의 거리를 "
             f"반드시 (N x {CELL_SIZE_CM})cm 로 설정해라. "
             f"예: 1칸→{CELL_SIZE_CM}cm, 2칸→{2 * CELL_SIZE_CM}cm, 3칸→{3 * CELL_SIZE_CM}cm. "
-            f"절대 10cm 같은 다른 값으로 임의 환산하지 마라."
+            f"절대 10cm 같은 다른 값으로 임의 환산하지 마라. "
+            f"단, 어떤 단계가 이미 'cm' 로 거리를 적고 있으면(예: '앞으로 7cm 이동', '3cm') "
+            f"그 cm 값을 그대로 거리 이동 블록에 사용하고 칸 단위로 다시 환산하지 마라. "
+            f"(수정 의견의 '조금 더/덜 이동' 미세 조정으로 {CELL_SIZE_CM}cm 배수가 아닌 "
+            f"거리가 나올 수 있다.)"
         )
 
     # 1단계 이미지 분석 컨텍스트 (3단계 설명에 사용)

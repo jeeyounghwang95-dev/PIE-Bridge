@@ -18,8 +18,6 @@ class Settings(BaseSettings):
     # 모델 이름 (변경 시 여기만 수정)
     FLASH_MODEL: str = "gemini-2.5-flash"
 
-    # ── Anthropic API (1-B 행동 계획 생성용) ────────────────
-    ANTHROPIC_API_KEY: str = ""
     # PLAN_MODEL: 1-B 행동 계획 생성용
     PLAN_MODEL: str = "gemini-2.5-pro"
 
